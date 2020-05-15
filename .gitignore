@@ -1,0 +1,48 @@
+﻿# Prerequisites
+*.user
+*.db
+*.opendb
+
+# Compiled Object files
+/Source/Common/x64/*
+/Source/Math/x64/*
+/Tests/UnitTests/GoogleTestHelper/x64/*
+/Tests/UnitTests/FileTests/TestTemp/*
+/Tests/UnitTests/FileTests/x64/*
+/Tests/UnitTests/MathTests/TestTemp/*
+/Tests/UnitTests/MathTests/x64/*
+/Release/*
+/Debug/*
+/x64/*
+/.vs/*
+
+# Precompiled Headers
+#*.gch
+#*.pch
+#*.pdb
+#*.ipch
+#*.ipdb
+#*.res
+
+# Compiled Dynamic libraries
+#*.so
+#*.dylib
+#*.dll
+
+# Compiled Static libraries
+#*.lai
+#*.la
+#*.a
+#*.lib
+
+# Executables
+/bin/*
+#*.exe
+#*.out
+#*.app
+
+# Others
+*.wav
+*.mrk
+*.dsp
+*~.*

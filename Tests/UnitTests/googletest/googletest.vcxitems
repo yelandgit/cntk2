@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <ItemsProjectGuid>{7c22a4da-976e-4278-8877-0058377ea2e5}</ItemsProjectGuid>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(MSBuildThisFileDirectory)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectCapability Include="SourceItemsFromImports" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest-death-test.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest-matchers.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest-message.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest-param-test.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest-printers.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest-spi.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest-test-part.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest-typed-test.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest_pred_impl.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\gtest_prod.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\custom\gtest-port.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\custom\gtest-printers.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\custom\gtest.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\gtest-death-test-internal.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\gtest-filepath.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\gtest-internal.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\gtest-param-util.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\gtest-port-arch.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\gtest-port.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\gtest-string.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)include\gtest\internal\gtest-type-util.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)src\gtest-internal-inl.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)include\gtest\internal\custom\README.md" />
+    <None Include="$(MSBuildThisFileDirectory)include\gtest\internal\gtest-type-util.h.pump" />
+    <None Include="$(MSBuildThisFileDirectory)README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\gtest-all.cc" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\gtest-death-test.cc" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\gtest-filepath.cc" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\gtest-matchers.cc" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\gtest-port.cc" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\gtest-printers.cc" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\gtest-test-part.cc" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\gtest-typed-test.cc" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\gtest.cc" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)src\gtest_main.cc" />
+  </ItemGroup>
+</Project>
