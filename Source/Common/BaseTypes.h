@@ -7,40 +7,41 @@
 #pragma once
 
 #include "Basics.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h> // include here because we redefine some names later
-#include <errno.h>
-#include <string>
-#include <vector>
-#include <cmath> // for HUGE_VAL
-#include <assert.h>
-#include <stdarg.h>
-#include <map>
-#include <stdexcept>
-#include <locale> // std::wstring_convert
-#include <string>
-#include <algorithm> // for transform()
-#include <unordered_map>
-#include <chrono>
-#include <thread>
-#include <stack>
-#include <mutex>
-#include <memory>
+#include "Half.hpp"
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <string.h> // include here because we redefine some names later
+//#include <errno.h>
+//#include <string>
+//#include <vector>
+//#include <cmath> // for HUGE_VAL
+//#include <assert.h>
+//#include <stdarg.h>
+//#include <map>
+//#include <stdexcept>
+//#include <locale> // std::wstring_convert
+//#include <string>
+//#include <algorithm> // for transform()
+//#include <unordered_map>
+//#include <chrono>
+//#include <thread>
+//#include <stack>
+//#include <mutex>
+//#include <memory>
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
-#endif // NOMINMAX
+#endif
 #include <windows.h> // for CRITICAL_SECTION and Unicode conversion functions   --TODO: is there a portable alternative?
 #endif
-#if __unix__
-#include <strings.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <dlfcn.h>
-#include <sys/time.h>
-typedef unsigned char byte;
-#endif
+//#if __unix__
+//#include <strings.h>
+//#include <unistd.h>
+//#include <sys/stat.h>
+//#include <dlfcn.h>
+//#include <sys/time.h>
+//typedef unsigned char byte;
+//#endif
 
 ///static inline wchar_t *GetWC(const char *c)
 ///{
@@ -269,15 +270,15 @@ typedef timeval LARGE_INTEGER;
 namespace msra { namespace util {
 
 // byte-reverse a variable --reverse all bytes (intended for integral types and float)
-template <typename T>
-static inline void bytereverse(T &v) throw()
-{
-	// note: this is more efficient than it looks because sizeof (v[0]) is a constant
-	char *p = (char*)&v;
-	const size_t elemsize = sizeof(v);
-	for (int k = 0; k < elemsize / 2; k++) // swap individual bytes
-		std::swap(p[k], p[elemsize - 1 - k]);
-}
+///template <typename T>
+///static inline void bytereverse(T &v) throw()
+///{
+///	// note: this is more efficient than it looks because sizeof (v[0]) is a constant
+///	char *p = (char*)&v;
+///	const size_t elemsize = sizeof(v);
+///	for (int k = 0; k < elemsize / 2; k++) // swap individual bytes
+///		std::swap(p[k], p[elemsize - 1 - k]);
+///}
 
 // byte-swap an entire array
 ///template <class V>

@@ -21,8 +21,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #endif
-#include <cctype>
-#include <cwctype>
+//#include <cctype>
+//#include <cwctype>
 #include <iostream>
 #include <iomanip>
 

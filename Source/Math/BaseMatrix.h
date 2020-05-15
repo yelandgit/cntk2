@@ -7,12 +7,12 @@
 #include "ExportAPI.h"
 #include "../Common/Basics.h"
 #include "../Common/BaseTypes.h"
-#include "half.hpp"
 //#include <string>
 //#include <stdint.h>
 //#include <memory>
 //#include <unordered_map>
 //#include <map>
+#include <list>
 
 #pragma warning( disable: 4251 )
 typedef unsigned char byte;
@@ -98,7 +98,7 @@ enum ElementWiseOperator
     // binary
     opCopyIf, opCopyIfNot, opSum, opDifference, opElementwiseProduct, opElementwiseQuotient, opLogSum, opPow,
     opMax, opMin, opArgmax, opArgmin,
-    opLess, opEqual, opGreater, opGreaterEqual, opNotEqual, opLessEqual, // Note: must obey this order: (sgn(a-b) == -1, 0, +1), (sgn(a-b) != -1, 0, +1)
+    opLess, opEqual, opGreater, opGreaterEqual, opNotEqual, opLessEqual, // Note: must obey this order: (sgn(a-b) == -1, 0, +1), (sgn(a-b)!=-1, 0, +1)
     opAnd, opOr, opXor, opMaskNegative,
     opElementwiseProductWithSigmoidDerivativeFromOutput, opElementwiseProductWithTanhDerivativeFromOutput,
     opElementwiseProductWithLinearRectifierDerivativeFromOutput, opElementwiseProductWithLogDerivativeFromOutput,
@@ -304,13 +304,11 @@ protected:
 	//		CPUSparseMatrix variables
 	// ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-	index_t*		m_compPos;				// begin ids of col/row in CSC/CSR format
+	index_t*		m_compPos;				// position in CSC/CSR format
 	index_t*		m_compId;				// row/col ids in CSC/CSR format
 	size_t			m_compSize;
-
-	size_t*			m_blockId;				// block ids
-	size_t*			m_blockPos;
-	size_t			m_blockCnt;				// how many blocks in matrix
+	index_t*		m_blockPos;				// position in BSC/BSR format
+	size_t			m_blockCnt;
 
 	// ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 	//		GPUSparseMatrix variables
@@ -334,8 +332,8 @@ public:
 	void Reset();
 
 	size_t Create(size_t rows, size_t cols);
-	//void Create(size_t rows, size_t cols, ElemType* p, int flags);
-	//void Assign(const BaseMatrixStorage<ElemType>& bms);
+	void Create(size_t rows, size_t cols, ElemType* p, int flags);
+	void Assign(const BaseMatrixStorage<ElemType>& bms);
 
 	//void MakeDenseFrom(const BaseMatrixStorage<ElemType>& bms);
 	//void MakeSparseFrom(const BaseMatrixStorage<ElemType>& bms);
@@ -371,8 +369,8 @@ public:
 
 	//void SetBuffer(ElemType* p, size_t total, bool external = false) { m_pBuffer = p; /*m_totalSize = total;*/ m_extBuffer = external; }
 
-	//ElemType GetItem(size_t row, size_t col, size_t offset=0) const;
-	//void PutItem(size_t row, size_t col, ElemType val, size_t offset=0);
+	ElemType GetItem(size_t row, size_t col, size_t offset=0) const;
+	void PutItem(size_t row, size_t col, ElemType val, size_t offset=0);
 
 	void SetZeros();
 	//void Transpose() { size_t n = m_numRows; m_numRows = m_numCols; m_numCols = n; m_format = MatrixFormat(m_format ^ matrixFormatRowMajor); }
@@ -386,9 +384,7 @@ public:
 
 	index_t* GetCompPos() const { return m_compPos; }
 	index_t* GetCompId() const { return m_compId; }
-
-	size_t* GetBlockId() const { return m_blockId; }
-	size_t* GetBlockPos() const { return m_blockPos; }
+	index_t* GetBlockPos() const { return m_blockPos; }
 
 	//void SetBlockCount(size_t n) { m_blockCnt = n; }
 	//void SetCompPosSize(size_t n) { m_compSize = n; }
@@ -432,8 +428,7 @@ protected:
 
 	void ViewDense(ostream& os, const char* fmt, size_t pos, size_t len) const;
 	void ViewSparse(ostream& os, const char* fmt, size_t pos, size_t len) const;
-	void ViewBlock1(ostream& os, const char* fmt, size_t pos, size_t len) const;
-	void ViewBlock2(ostream& os, const char* fmt, size_t pos, size_t len) const;
+	void ViewBlock(ostream& os, const char* fmt, size_t pos, size_t len) const;
 };
 
 template<class ElemType>
@@ -451,8 +446,7 @@ void BaseMatrixStorage<ElemType>::ZeroInit(MatrixFormat mft, device_t dev)
 	m_compSize = 0;					// sparse compressed
 	m_compPos = nullptr;			// compressed slice position
 	m_compId = nullptr;				// data Id
-	m_blockCnt = 0;				// sparse block	counter
-	m_blockId = nullptr;
+	m_blockCnt = 0;					// sparse block	counter
 	m_blockPos = nullptr;
 
 	// GPU support
@@ -472,17 +466,16 @@ void BaseMatrixStorage<ElemType>::Release()
 			delete[] m_pBuffer; m_pBuffer = nullptr;
 			delete[] m_compPos; m_compPos = nullptr;
 			delete[] m_compId; m_compId = nullptr;
-			delete[] m_blockId; m_blockId = nullptr;
 			delete[] m_blockPos; m_blockPos = nullptr;
 		}
 		else
 		{
 #ifndef CPUONLY
-			if (m_pBuffer != nullptr)
+			if (m_pBuffer!=nullptr)
 				TracingGPUMemoryAllocator::Free<ElemType>(m_deviceId, m_pBuffer, true);
 			m_pBuffer = nullptr;
 
-			if (m_tempDeviceBuffer != nullptr)
+			if (m_tempDeviceBuffer!=nullptr)
 				TracingGPUMemoryAllocator::Free<index_t>(m_deviceId, m_tempDeviceBuffer, true);
 			m_tempDeviceBuffer = nullptr;
 			m_tempDeviceBufferSize = 0;
@@ -540,95 +533,70 @@ size_t BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols)
 	else if (IsBlockFormat())
 	{
 		size_t k = max(rows,cols) + 1;
-		if (k > m_compSize) { delete[] m_blockPos; m_blockPos = new size_t[m_compSize=k]; }
+		if (k > m_compSize) { delete[] m_blockPos; m_blockPos = new index_t[m_compSize=k]; }
 		memset(m_blockPos, 0xff, m_compSize*sizeof(size_t));
 		m_blockCnt = 0;
 	}
 	return n;
 }
 
-///template<class ElemType>
-///void BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols, ElemType* p, int flags)
-///{
-///	if (IsDenseFormat())
-///	{
-///		// dense
-///		if (flags & matrixFlagExternalBuffer)
-///		{
-///			m_numRows = rows; m_numCols = cols;
-///			if (!m_extBuffer && m_allocSize>0) delete[] m_pBuffer;
-///			m_pBuffer = p; m_extBuffer = true;
-///			m_allocSize = rows * cols;
-///		}
-///		else { size_t n = Create(rows, cols); if (n) memcpy(m_pBuffer, p, n*sizeof(ElemType)); }
-///	}
-///	else if (m_format & matrixFormatBlock)
-///	{
-///		// sparse block
-///		NOT_IMPLEMENTED
-///	}
-///	else
-///	{
-///		// sparse compressed
-///		NOT_IMPLEMENTED
-///	}
-///}
+template<class ElemType>
+void BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols, ElemType* p, int flags)
+{
+	if (!IsDenseFormat())
+		LogicError("Matrix creation from reference data supported only for Dense format");
 
-///template<class ElemType>
-///void BaseMatrixStorage<ElemType>::Assign(const BaseMatrixStorage<ElemType>& bms)
-///{
-///	if (&bms == this) return;
-///
-///	Init(bms.m_format, bms.m_deviceId);
-///	size_t n = bms.m_numRows * bms.m_numCols;
-///	if (n == 0) { m_numRows = bms.m_numRows; m_numCols = bms.m_numCols; return; }
-///
-///	if (bms.IsDenseFormat())
-///	{
-///		m_numRows = bms.m_numRows; m_numCols = bms.m_numCols;
-///		if (bms.m_extBuffer) { m_pBuffer = bms.m_pBuffer; m_extBuffer = true; }
-///		else memcpy(m_pBuffer=new ElemType[m_allocSize=n], bms.m_pBuffer, n*sizeof(ElemType));
-///	}
-///	else if (bms.IsSparseFormat())
-///	{
-///		Create(bms.m_numRows, bms.m_numCols);
-///		size_t nc = (m_format & matrixFormatRowMajor) ? m_numRows : m_numCols;
-///		size_t nr = (m_format & matrixFormatRowMajor) ? m_numCols : m_numRows;
-///
-///		memcpy(m_compPos, bms.m_compPos, (nc+1)*sizeof(index_t));
-///		size_t n = m_compPos[nc]; Allocate(max(n,nr)); if (n==0) return;
-///		memcpy(m_pBuffer, bms.m_pBuffer, n*sizeof(ElemType));
-///		memcpy(m_compId, bms.m_compId, n*sizeof(index_t));
-///	}
-///	else if (bms.m_blockId)
-///	{
-///		// block (old)
-///		Create(bms.m_numRows, bms.m_numCols);
-///		size_t nc = (m_format & matrixFormatRowMajor) ? m_numRows : m_numCols;
-///		size_t nr = (m_format & matrixFormatRowMajor) ? m_numCols : m_numRows;
-///
-///		size_t n = bms.m_blockCnt; Allocate(n==0 ? nr : n*nr);
-///		for (size_t j=0; j<bms.m_blockCnt; ++j)
-///		{
-///			size_t i = bms.m_blockId[j];// - bms.m_blockShift;
-///			memcpy(m_pBuffer+m_blockCnt*nr, bms.m_pBuffer+j*nr, nr*sizeof(ElemType));
-///			m_blockPos[i] = m_blockCnt++;
-///		}
-///	}
-///	else
-///	{
-///		// block (new)
-///		Create(bms.m_numRows, bms.m_numCols); if (bms.m_blockCnt==0) return;
-///		size_t nc = (m_format & matrixFormatRowMajor) ? m_numRows : m_numCols;
-///		size_t nr = (m_format & matrixFormatRowMajor) ? m_numCols : m_numRows;
-///
-///		size_t n = bms.m_blockCnt*nr; Allocate(n);
-///		memcpy(m_pBuffer, bms.m_pBuffer, n*sizeof(ElemType));
-///		memcpy(m_blockPos, bms.m_blockPos, m_compSize*sizeof(size_t));
-///		m_blockCnt = bms.m_blockCnt;
-///	}
-///}
-///
+	m_format = (flags & matrixFormatRowMajor) ? matrixFormatDenseRow : matrixFormatDenseCol;
+	if (flags & matrixFlagExternalBuffer)
+	{
+		m_numRows = rows; m_numCols = cols;
+		if (!m_extBuffer && m_allocSize>0) delete[] m_pBuffer;
+		m_pBuffer = p; m_extBuffer = true;
+		m_allocSize = rows * cols;
+	}
+	else { size_t n = Create(rows, cols); if (n) memcpy(m_pBuffer, p, n*sizeof(ElemType)); }
+}
+
+template<class ElemType>
+void BaseMatrixStorage<ElemType>::Assign(const BaseMatrixStorage<ElemType>& bms)
+{
+	if (&bms == this) return;
+
+	Init(bms.m_format, bms.m_deviceId);
+	size_t n = bms.m_numRows * bms.m_numCols;
+	if (n == 0) { m_numRows = bms.m_numRows; m_numCols = bms.m_numCols; return; }
+
+	if (bms.IsDenseFormat())
+	{
+		m_numRows = bms.m_numRows; m_numCols = bms.m_numCols;
+		if (bms.m_extBuffer) { m_pBuffer = bms.m_pBuffer; m_extBuffer = true; }
+		else memcpy(m_pBuffer=new ElemType[m_allocSize=n], bms.m_pBuffer, n*sizeof(ElemType));
+	}
+	else if (bms.IsSparseFormat())
+	{
+		Create(bms.m_numRows, bms.m_numCols);
+		size_t nc = (m_format & matrixFormatRowMajor) ? m_numRows : m_numCols;
+		size_t nr = (m_format & matrixFormatRowMajor) ? m_numCols : m_numRows;
+
+		memcpy(m_compPos, bms.m_compPos, (nc+1)*sizeof(index_t));
+		size_t n = m_compPos[nc]; Allocate(max(n,nr)); if (n==0) return;
+		memcpy(m_pBuffer, bms.m_pBuffer, n*sizeof(ElemType));
+		memcpy(m_compId, bms.m_compId, n*sizeof(index_t));
+	}
+	else
+	{
+		// block (new)
+		Create(bms.m_numRows, bms.m_numCols); if (bms.m_blockCnt==0) return;
+		size_t nc = (m_format & matrixFormatRowMajor) ? m_numRows : m_numCols;
+		size_t nr = (m_format & matrixFormatRowMajor) ? m_numCols : m_numRows;
+
+		size_t n = bms.m_blockCnt*nr; Allocate(n);
+		memcpy(m_pBuffer, bms.m_pBuffer, n*sizeof(ElemType));
+		memcpy(m_blockPos, bms.m_blockPos, m_compSize*sizeof(size_t));
+		m_blockCnt = bms.m_blockCnt;
+	}
+}
+
 ///template<class ElemType>
 ///void BaseMatrixStorage<ElemType>::MakeDenseFrom(const BaseMatrixStorage<ElemType>& bms)
 ///{
@@ -794,7 +762,7 @@ size_t BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols)
 ///	if (IsDenseFormat())
 ///	{
 ///		m_format = (rmf) ? matrixFormatSparseBSR : matrixFormatSparseBSC;
-///		m_blockPos = new size_t[m_compSize=max(nc,nr)];
+///		m_blockPos = new index_t[m_compSize=max(nc,nr)];
 ///		for (size_t j=0; j<nc; ++j) m_blockPos[j] = j;
 ///		m_blockCnt = nc;
 ///	}
@@ -802,7 +770,7 @@ size_t BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols)
 ///	{
 ///		ElemType* pBuffer = new ElemType[m_allocSize=nc*nr];
 ///		memset(pBuffer, 0, m_allocSize*sizeof(ElemType));
-///		m_blockPos = new size_t[m_compSize=max(nc,nr)];
+///		m_blockPos = new index_t[m_compSize=max(nc,nr)];
 ///		for (size_t j=0; j<nc; ++j)
 ///		{
 ///			m_blockPos[j] = j;
@@ -951,105 +919,78 @@ size_t BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols)
 //			get / put value
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-///template <class ElemType>
-///ElemType BaseMatrixStorage<ElemType>::GetItem(size_t row, size_t col, size_t offset) const
-///{
-///	size_t nr = m_numRows, nc = m_numCols;
-///	if (m_format & matrixFormatRowMajor) { size_t i = row; row = col; col = i; nr = m_numCols; nc = m_numRows; }
-///
-///	// dense
-///	if (IsDenseFormat())
-///	{
-///		col += offset/nr; if (col>=nc || row>=nr) return 0;
-///		return m_pBuffer[col*nr + row];
-///	}
-///	// sparse compressed
-///	col += offset; if (col>=nc || row>=nr) return 0;
-///	if ((m_format & matrixFormatBlock)==0)
-///	{
-///		size_t pos = m_compPos[col];
-///		for (size_t fin=m_compPos[col+1]; pos<fin; ++pos)
-///			if (m_compId[pos]==row) return m_pBuffer[pos];
-///		return 0;
-///	}
-///	// sparse block (new)
-///	if (m_blockPos)
-///	{
-///		size_t i = m_blockPos[col];
-///		return (i==string::npos) ? 0 : m_pBuffer[i*nr + row];
-///	}
-///	// sparse block (old)
-///	if (m_blockId)
-///	{
-///		for (size_t i=0; i<m_blockCnt; ++i)
-///			if (m_blockId[i]==col) return m_pBuffer[i*nr + row];
-///	}
-///	return 0;
-///}
-///
-///template <class ElemType>
-///void BaseMatrixStorage<ElemType>::PutItem(size_t row, size_t col, ElemType val, size_t offset)
-///{
-///	// row/col priority
-///	size_t nr = m_numRows, nc = m_numCols;
-///	if (m_format & matrixFormatRowMajor) { size_t i = row; row = col; col = i; nr = m_numCols; nc = m_numRows; }
-///
-///	if (IsDenseFormat())
-///	{
-///		// dense
-///		col += offset/nr; if (col>=nc || row>=nr) return;
-///		m_pBuffer[col*nr + row] = val;
-///	}
-///	else if ((m_format & matrixFormatBlock)==0)
-///	{
-///		// sparse compressed
-///		col += offset; if (col>=nc || row>=nr) return;
-///		size_t pos = m_compPos[col];
-///		for (size_t fin=m_compPos[col+1]; pos<fin; ++pos)
-///			if (m_compId[pos]==row) { m_pBuffer[pos] = val; return; }
-///
-///		size_t n = m_compPos[nc]; if (n==m_allocSize) Allocate(m_allocSize+max(nr,nc));
-///		for (size_t i=n; i>pos; --i) { m_pBuffer[i] = m_pBuffer[i-1]; m_compId[i] = m_compId[i-1]; }
-///		for (size_t i=col+1; i<=nc; ++i) ++m_compPos[i];
-///		m_pBuffer[pos] = val; m_compId[pos] = index_t(row);
-///	}
-///	else if (m_blockPos)
-///	{
-///		// sparse block (new)
-///		col += offset; if (col>=nc || row>=nr) return;
-///		size_t i = m_blockPos[col];
-///		if (i==string::npos)
-///		{
-///			if ((m_blockCnt+1)*nr > m_allocSize)
-///			{
-///				size_t k = int(0.33*nc + 0.5); if (k==0) ++k;
-///				Allocate(m_allocSize + k*nr);
-///			}
-///			m_blockPos[col] = i = m_blockCnt++;
-///		}
-///		m_pBuffer[i*nr + row] = val;
-///	}
-///	else if (m_blockId)
-///	{
-///		// sparse block (old)
-///		col += offset; if (col>=nc || row>=nr) return;
-///		ElemType* p = nullptr;
-///		for (size_t j=0; j<m_blockCnt; ++j)
-///			if (m_blockId[j] == col) { p = m_pBuffer + j*nr; break; }
-///
-///		if (p==nullptr)
-///		{
-///			if ((m_blockCnt+1)*nr> m_allocSize)
-///			{
-///				size_t k = int(0.33*nc + 0.5); if (k==0) ++k;
-///				Allocate(m_allocSize + k*nr);
-///			}
-///			p = (ElemType*)memset(m_pBuffer+m_blockCnt*nr, 0, nr*sizeof(ElemType));
-///			m_blockId[m_blockCnt++] = (index_t)col;
-///		}
-///		p[row] = val;
-///	}
-///}
+template <class ElemType>
+ElemType BaseMatrixStorage<ElemType>::GetItem(size_t row, size_t col, size_t offset) const
+{
+	size_t nr = m_numRows, nc = m_numCols;
+	if (m_format & matrixFormatRowMajor) { size_t i = row; row = col; col = i; nr = m_numCols; nc = m_numRows; }
+
+	// dense
+	if (IsDenseFormat())
+	{
+		col += offset/nr; if (col>=nc || row>=nr) return 0;
+		return m_pBuffer[col*nr + row];
+	}
+	// sparse compressed
+	col += offset; if (col>=nc || row>=nr) return 0;
+	if ((m_format & matrixFormatBlock)==0)
+	{
+		size_t pos = m_compPos[col];
+		for (size_t fin=m_compPos[col+1]; pos<fin; ++pos)
+			if (m_compId[pos]==row) return m_pBuffer[pos];
+	}
+	// sparse block (new)
+	else if (m_blockPos)
+	{
+		size_t i = m_blockPos[col];
+		return (i==string::npos) ? 0 : m_pBuffer[i*nr + row];
+	}
+	return 0;
+}
+
+template <class ElemType>
+void BaseMatrixStorage<ElemType>::PutItem(size_t row, size_t col, ElemType val, size_t offset)
+{
+	// row/col priority
+	size_t nr = m_numRows, nc = m_numCols;
+	if (m_format & matrixFormatRowMajor) { size_t i = row; row = col; col = i; nr = m_numCols; nc = m_numRows; }
+
+	// dense
+	if (IsDenseFormat())
+	{
+		col += offset/nr; if (col>=nc || row>=nr) return;
+		m_pBuffer[col*nr + row] = val;
+	}
+	// sparse compressed
+	else if ((m_format & matrixFormatBlock)==0)
+	{
+		col += offset; if (col>=nc || row>=nr) return;
+		size_t pos = m_compPos[col];
+		for (size_t fin=m_compPos[col+1]; pos<fin; ++pos)
+			if (m_compId[pos]==row) { m_pBuffer[pos] = val; return; }
+
+		size_t n = m_compPos[nc]; if (n==m_allocSize) Allocate(m_allocSize+max(nr,nc));
+		for (size_t i=n; i>pos; --i) { m_pBuffer[i] = m_pBuffer[i-1]; m_compId[i] = m_compId[i-1]; }
+		for (size_t i=col+1; i<=nc; ++i) ++m_compPos[i];
+		m_pBuffer[pos] = val; m_compId[pos] = index_t(row);
+	}
+	// sparse block (new)
+	else
+	{
+		col += offset; if (col>=nc || row>=nr) return;
+		size_t i = m_blockPos[col];
+		if (i==string::npos)
+		{
+			if ((m_blockCnt+1)*nr > m_allocSize)
+			{
+				size_t k = int(0.33*nc + 0.5); if (k==0) ++k;
+				Allocate(m_allocSize + k*nr);
+			}
+			m_blockPos[col] = index_t(i = m_blockCnt++);
+		}
+		m_pBuffer[i*nr + row] = val;
+	}
+}
 
 template <class ElemType>
 void BaseMatrixStorage<ElemType>::SetZeros()
@@ -1108,7 +1049,6 @@ string BaseMatrixStorage<ElemType>::GetInfo(bool all) const
 		s += string("\n") +
 				"  compPos  = " + hex(m_compPos) + "\t(" + long(m_compSize) + ")\tn=" + long(m_compPos ? nc+1:0) + "\n"
 				"  compId   = " + hex(m_compId) + "\t(" + long(m_allocSize) + ")\tn=" + long(m_compPos ? m_compPos[nc]:0) + "\n"
-				"  blockIds = " + hex(m_blockId) + "\t(" + long(m_compSize) + ")\tn=" + long(m_blockCnt) + "\n"
 				"  blockPos = " + hex(m_blockPos) + "\t(" + long(m_compSize) + ")\tn=" + long(m_blockCnt) + "\n";
 	}
 	return s;
@@ -1121,8 +1061,7 @@ void BaseMatrixStorage<ElemType>::ViewBuffer(ostream& os, const char* fmt, size_
 
 	if (IsDenseFormat()) ViewDense(os,fmt,pos,len);
 	else if (IsSparseFormat()) ViewSparse(os,fmt,pos,len);
-	else if (m_blockPos) ViewBlock2(os,fmt,pos,len);
-	else ViewBlock1(os,fmt,pos,len);
+	else ViewBlock(os,fmt,pos,len);
 }
 
 template <class ElemType>
@@ -1184,28 +1123,7 @@ void BaseMatrixStorage<ElemType>::ViewSparse(ostream& os, const char* fmt, size_
 }
 
 template <class ElemType>
-void BaseMatrixStorage<ElemType>::ViewBlock1(ostream& os, const char* fmt, size_t pos, size_t len) const
-{
-	size_t nc = (m_format & matrixFormatRowMajor) ? m_numRows : m_numCols;
-	size_t nr = (m_format & matrixFormatRowMajor) ? m_numCols : m_numRows;
-	if (len > 0 && (pos + len) < nc) nc = pos + len;
-
-	for (size_t j=pos; j<nc; ++j)
-	{
-		const ElemType* p = nullptr;
-		for (size_t i=0; i<m_blockCnt; ++i)
-			//if (m_blockId[i]-m_blockShift == j) { p = m_pBuffer + i*nr; break; }
-			if (m_blockId[i] == j) { p = m_pBuffer + i*nr; break; }
-
-		string s; char sz[32];
-		if (p==nullptr) for (size_t i=0; i<nr; ++i) { sprintf_s(sz, sizeof(sz), fmt, 0.0); s += sz; }
-		else for (size_t i=0; i<nr; ++i) { sprintf_s(sz, sizeof(sz), fmt, float(*p++)); s += sz; }
-		os << s << endl;
-	}
-}
-
-template <class ElemType>
-void BaseMatrixStorage<ElemType>::ViewBlock2(ostream& os, const char* fmt, size_t pos, size_t len) const
+void BaseMatrixStorage<ElemType>::ViewBlock(ostream& os, const char* fmt, size_t pos, size_t len) const
 {
 	size_t nc = (m_format & matrixFormatRowMajor) ? m_numRows : m_numCols;
 	size_t nr = (m_format & matrixFormatRowMajor) ? m_numCols : m_numRows;
@@ -1231,18 +1149,9 @@ void BaseMatrixStorage<ElemType>::ViewIds(ostream& os) const
 	if (IsDenseFormat()) return;
 
 	// sparse block
-	size_t nc = (m_format & matrixFormatRowMajor) ? m_numRows : m_numCols;
-	if (m_format & matrixFormatBlock)
+	size_t nc = IsRowMajor() ? m_numRows : m_numCols;
+	if (IsBlockFormat())
 	{
-		os << "  blockIds {";
-		if (m_blockId)
-		{
-			for (size_t j=0; j<m_blockCnt; ++j) os << " " << m_blockId[j];
-			//os << " }  " << m_blockCnt << "  shift=" << m_blockShift << endl;
-			os << " }  " << m_blockCnt <<  endl;
-		}
-		else os << "}" << endl;
-
 		os << "  blockPos {";
 		if (m_blockPos)
 		{
@@ -1290,31 +1199,31 @@ public:
 	void Init() { m_sob->SetZeros(); }
 	void Reset() { m_sliceOffset = 0; m_sob->Reset(); }
 
-	//void Assign(size_t rows, size_t cols, ElemType* p, int flags);
-	//void Assign(const BaseMatrix<ElemType>& mat, bool shallow = false);
-	//void Resize(size_t rows, size_t cols);
-	//void ResizeBack() { m_numRows = m_sob->GetNumRows(); m_numCols = m_sob->GetNumCols(); m_sliceOffset = 0; }
+	void Assign(size_t rows, size_t cols, ElemType* p, int flags);
+	void Assign(const BaseMatrix<ElemType>& mat, bool shallow = false);
+	void Resize(size_t rows, size_t cols);
+	void ResizeBack() { m_numRows = m_sob->GetNumRows(); m_numCols = m_sob->GetNumCols(); m_sliceOffset = 0; }
 
-	//string Format() const { return m_sob->Format(); }
-	//MatrixFormat GetFormat() const { return m_sob->GetFormat(); }
-	//device_t GetDeviceId() const { return m_sob->GetDeviceId(); }
+	string Format() const { return m_sob->Format(); }
+	MatrixFormat GetFormat() const { return m_sob->GetFormat(); }
+	device_t GetDeviceId() const { return m_sob->GetDeviceId(); }
 
-	//size_t GetNumRows() const { return m_numRows; }
-	//size_t GetNumCols() const { return m_numCols; }
-	//size_t GetNumStorageRows() const { return m_sob->GetNumRows(); }
-	//size_t GetNumStorageCols() const { return m_sob->GetNumCols(); }
-	//size_t GetNumElements() const { return m_numRows * m_numCols; }
+	size_t GetNumRows() const { return m_numRows; }
+	size_t GetNumCols() const { return m_numCols; }
+	size_t GetNumStorageRows() const { return m_sob->GetNumRows(); }
+	size_t GetNumStorageCols() const { return m_sob->GetNumCols(); }
+	size_t GetNumElements() const { return m_numRows * m_numCols; }
 	//size_t GetSizeAllocated() const { return m_sob->GetSizeAllocated(); }
 	//size_t GetTotalBufferSize() const { return m_numRows*m_numCols*sizeof(ElemType); }
 	//size_t GetDiagSize() const { return m_numRows < m_numCols ? m_numRows : m_numCols; }
 	//size_t NzCount() const;
 
-	//bool IsColMajor() const { return (m_sob->GetFormat() & matrixFormatRowMajor)==0; }
-	//bool IsRowMajor() const { return (m_sob->GetFormat() & matrixFormatRowMajor)!=0; }
-	//bool IsEmpty() const { return m_numRows == 0 || m_numCols == 0; }
-	//bool HasExternalBuffer() const { return m_sob->HasExternalBuffer(); }
-	//bool OwnBuffer() const { return !m_sob->HasExternalBuffer(); }
-	//bool IsView() const { return (m_numRows != m_sob->GetNumRows() || m_numCols != m_sob->GetNumCols() || m_sliceOffset != 0); }
+	bool IsColMajor() const { return (m_sob->GetFormat() & matrixFormatRowMajor)==0; }
+	bool IsRowMajor() const { return (m_sob->GetFormat() & matrixFormatRowMajor)!=0; }
+	bool IsEmpty() const { return m_numRows == 0 || m_numCols == 0; }
+	bool HasExternalBuffer() const { return m_sob->HasExternalBuffer(); }
+	bool OwnBuffer() const { return !m_sob->HasExternalBuffer(); }
+	bool IsSlice() const { return (m_numRows!=m_sob->GetNumRows() || m_numCols!=m_sob->GetNumCols() || m_sliceOffset!=0); }
 
 	//ElemType* Buffer() const { return m_sob->GetBuffer(); }						// dense (old)
 	//ElemType* Data() const { return m_sob->GetBuffer() + m_sliceOffset; }		// dense (old)
@@ -1322,8 +1231,10 @@ public:
 	//ElemType* GetBuffer() const { return m_sob->GetBuffer(); }					// dense
 	//ElemType* GetData() const { return m_sob->GetBuffer() + m_sliceOffset; }	// dense
 
-	//ElemType GetItem(size_t row, size_t col) const { return m_sob->GetItem(row, col, m_sliceOffset); }
-	//void PutItem(size_t row, size_t col, ElemType val) { m_sob->PutItem(row, col, val, m_sliceOffset); }
+	ElemType GetItem(size_t row, size_t col) const { return m_sob->GetItem(row, col, m_sliceOffset); }
+	void PutItem(size_t row, size_t col, ElemType val) { m_sob->PutItem(row, col, val, m_sliceOffset); }
+
+	bool IsEqualTo(const BaseMatrix<ElemType>& m, ElemType thresh=1.e-8) const;
 
 	//void TransposeFrom(const BaseMatrix<ElemType>& mat, bool hdr=false) { m_sob->TransposeFrom(*mat.m_sob.get(),hdr); ResizeBack(); }
 
@@ -1343,8 +1254,7 @@ public:
 	//index_t* GetCompPos() const { return m_sob->GetCompPos(); }
 	//index_t* GetCompId() const { return m_sob->GetCompId(); }
 
-	//size_t* GetBlockId() const { return m_sob->GetBlockId(); }
-	//size_t* GetBlockPos() const { return m_sob->GetBlockPos() + m_sliceOffset; }
+	//index_t* GetBlockPos() const { return m_sob->GetBlockPos() + m_sliceOffset; }
 	//ElemType* GetNzValues() { return m_sob->GetNzValues(); }
 
 	//void SetFormat(MatrixFormat mft) { m_sob->SetFormat(mft); }
@@ -1417,7 +1327,7 @@ public:
 	//}
 	//void VerifySize(size_t rows, size_t cols)
 	//{
-	//	if (rows != m_numRows || cols != m_numCols)
+	//	if (rows!=m_numRows || cols!=m_numCols)
 	//		LogicError("VerifySize: expected matrix size %lu x %lu, but it is %lu x %lu", rows, cols, m_numRows, m_numCols);
 	//}
 };

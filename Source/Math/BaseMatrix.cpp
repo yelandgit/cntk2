@@ -28,33 +28,33 @@ void BaseMatrix<ElemType>::Init(MatrixFormat fmt, device_t dev)
 	else m_sob->Init(fmt, dev);
 }
 
-///template<class ElemType>
-///void BaseMatrix<ElemType>::Assign(size_t rows, size_t cols, ElemType* p, int flags)
-///{
-///	m_sob->Create(m_numRows=rows, m_numCols=cols, p, flags);
-///	m_sliceOffset = 0;
-///}
-///
-///template<class ElemType>
-///void BaseMatrix<ElemType>::Assign(const BaseMatrix<ElemType>& mat, bool shallow)
-///{
-///	if (&mat == this) return;
-///	m_numRows = mat.m_numRows;
-///	m_numCols = mat.m_numCols;
-///	m_sliceOffset = mat.m_sliceOffset;
-///	if (shallow) m_sob = mat.m_sob;
-///	else m_sob->Assign(*mat.m_sob.get());
-///}
-///
-///template<class ElemType>
-///void BaseMatrix<ElemType>::Resize(size_t rows, size_t cols)
-///{
-///	m_sliceOffset = 0;
-///	m_numRows = rows; m_numCols = cols;
-///	if (m_sob==nullptr) m_sob = make_shared<BaseMatrixStorage<ElemType>>(matrixFormatDense, CPUDEVICE);
-///	if (rows!=m_sob->GetNumRows() || cols!=m_sob->GetNumCols()) m_sob->Create(rows, cols);
-///}
-///
+template<class ElemType>
+void BaseMatrix<ElemType>::Assign(size_t rows, size_t cols, ElemType* p, int flags)
+{
+	m_sob->Create(m_numRows=rows, m_numCols=cols, p, flags);
+	m_sliceOffset = 0;
+}
+
+template<class ElemType>
+void BaseMatrix<ElemType>::Assign(const BaseMatrix<ElemType>& mat, bool shallow)
+{
+	if (&mat == this) return;
+	m_numRows = mat.m_numRows;
+	m_numCols = mat.m_numCols;
+	m_sliceOffset = mat.m_sliceOffset;
+	if (shallow) m_sob = mat.m_sob;
+	else m_sob->Assign(*mat.m_sob.get());
+}
+
+template<class ElemType>
+void BaseMatrix<ElemType>::Resize(size_t rows, size_t cols)
+{
+	m_sliceOffset = 0;
+	m_numRows = rows; m_numCols = cols;
+	if (m_sob==nullptr) m_sob = make_shared<BaseMatrixStorage<ElemType>>(matrixFormatDense, CPUDEVICE);
+	if (rows!=m_sob->GetNumRows() || cols!=m_sob->GetNumCols()) m_sob->Create(rows, cols);
+}
+
 ///template<class ElemType>
 ///void BaseMatrix<ElemType>::SetSlice(size_t start, size_t len)
 ///{
@@ -168,6 +168,16 @@ void BaseMatrix<ElemType>::Init(MatrixFormat fmt, device_t dev)
 ///	if (m==1 || m==2) return diffStorage;
 ///	return (m==0 ? 0 : m_sob->Compare(*mat.m_sob.get()));
 ///}
+
+template<class ElemType>
+bool BaseMatrix<ElemType>::IsEqualTo(const BaseMatrix<ElemType>& m, ElemType thresh) const
+{
+	if (m.m_numRows!=m_numRows || m.m_numCols!=m_numCols) return false;
+	for (size_t j=0; j<m_numCols; ++j)
+	for (size_t i=0; i<m_numRows; ++i)
+		if (abs(GetItem(i,j)-m.GetItem(i,j)) > thresh) return false;
+	return true;
+}
 
 template<class ElemType>
 void BaseMatrix<ElemType>::ViewData(ostream& os, const char* fmt) const

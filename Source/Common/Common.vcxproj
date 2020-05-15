@@ -150,6 +150,8 @@
     <ClInclude Include="Directory.h" />
     <ClInclude Include="ExceptionWithCallStack.h" />
     <ClInclude Include="File.h" />
+    <ClInclude Include="Half.hpp" />
+    <ClInclude Include="HalfConverter.hpp" />
     <ClInclude Include="Path.h" />
     <ClInclude Include="Platform.h" />
     <ClInclude Include="stdafx.h" />

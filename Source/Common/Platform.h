@@ -103,8 +103,7 @@ typedef void *HANDLE;
 inline errno_t _fopen_s(FILE **file, const char *fileName, const char *mode)
 {
     FILE *f = fopen(fileName, mode);
-    if (f == NULL)
-        return -1;
+    if (f == NULL) return -1;
     *file = f;
     return 0;
 }

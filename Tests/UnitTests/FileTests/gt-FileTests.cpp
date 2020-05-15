@@ -15,7 +15,6 @@ namespace Microsoft { namespace MSR { namespace CNTK { namespace Test {
 class FileTests : public ::testing::Test, public TestDataHelper
 {
 public:
-	FileTests() {}
 	static void SetUpTestCase() { Prepare(__FILE__); }
 	static void TearDownTestCase() {}
 

@@ -4,21 +4,21 @@
 //
 #pragma once
 
-///#include <cctype>
-///#include <codecvt>
-///#include <cwctype>
+//#include <cctype>
+//#include <codecvt>
+//#include <cwctype>
 #include <string>
 #include <vector>
 #include <iostream>
 #include <iomanip>
-///#include <limits.h>
+//#include <limits.h>
 
 ///#if defined(_MSC_VER)
 ///#include <cuchar>
 ///
 //// These methods aren't in the std namespace on Linux, so make them available in a way that is consistent with
 //// both without polluting the global namespace.
-///namespace
+//namespace
 ///{
 ///	using std::c16rtomb;
 ///	using std::mbrtoc16;

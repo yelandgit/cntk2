@@ -8,7 +8,7 @@
 #pragma once
 
 #include "HalfConverter.hpp"
-///#include "../Common/File.h"
+#include <string>
 
 #if !defined(CPUONLY) && __has_include("cuda_fp16.h")
 
@@ -317,6 +317,10 @@ STD_HALF_UNIOP(sinh)
 STD_HALF_UNIOP(acosh)
 STD_HALF_UNIOP(asinh)
 #undef STD_HALF_UNIOP
+
+#ifdef max
+#undef max
+#endif
 
 #define STD_HALF_BINOP(x) inline half x(const half& lhs, const half& rhs) { return x((float)lhs, (float)rhs); }
 STD_HALF_BINOP(max)
