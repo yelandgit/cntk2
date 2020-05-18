@@ -56,6 +56,13 @@ void BaseMatrix<ElemType>::Resize(size_t rows, size_t cols)
 }
 
 template<class ElemType>
+void BaseMatrix<ElemType>::Reshape(size_t rows, size_t cols)
+{
+	if (m_sob->Reshape(rows,cols)) ResizeBack();
+	else LogicError("Reshape; Invalid new shape");
+}
+
+template<class ElemType>
 void BaseMatrix<ElemType>::SetSlice(size_t start, size_t len)
 {
 	MatrixFormat mft = m_sob->GetFormat();

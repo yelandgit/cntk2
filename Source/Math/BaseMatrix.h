@@ -372,6 +372,7 @@ public:
 	void PutItem(size_t row, size_t col, ElemType val, size_t pos=0);
 
 	void SetZeros();
+	bool Reshape(size_t rows, size_t cols);
 	void Transpose() { size_t n = m_numRows; m_numRows = m_numCols; m_numCols = n; m_format = MatrixFormat(m_format ^ matrixFormatRowMajor); }
 	void TransposeFrom(const BaseMatrixStorage<ElemType>& bms, bool hdr=false);
 
@@ -624,6 +625,67 @@ void BaseMatrixStorage<ElemType>::Assign(const BaseMatrixStorage<ElemType>& bms)
 		memcpy(m_compPos, bms.m_compPos, m_compSize*sizeof(index_t));
 		m_blockCnt = bms.m_blockCnt;
 	}
+}
+
+template<class ElemType>
+bool BaseMatrixStorage<ElemType>::Reshape(size_t rows, size_t cols)
+{
+	if (rows*cols != m_numRows*m_numCols) return false;
+	if (rows==m_numRows && cols==m_numCols) return true;
+
+	bool rmf = IsRowMajor();
+	size_t nr1, nr2, nc1, nc2;
+	if (rmf) { nc1 = m_numRows, nr1 = m_numCols; nc2 = rows; nr2 = cols; }
+	else { nc1 = m_numCols, nr1 = m_numRows; nc2 = cols; nr2 = rows; }
+	m_numRows = rows;
+	m_numCols = cols;
+
+	if (IsSparseFormat())
+	{
+		index_t* compPos = m_compPos; m_compPos = new index_t[m_compSize=nc2+1];
+		memset(m_compPos, 0, m_compSize*sizeof(index_t));
+		if (compPos[nc1]==0) { delete[] compPos; return true; }
+
+		ElemType* pBuff = m_pBuffer; m_pBuffer = new ElemType[m_buffSize];
+		index_t* compId = m_compId; m_compId = new index_t[m_buffSize];
+		for (size_t j=0; j<nc1; ++j)
+		{
+			size_t ns = compPos[j], ne = compPos[j+1];
+			for (size_t k=ns; k<ne; ++k)
+			{
+				size_t n = j*nr1 + compId[k];
+				if (rmf) PutItem(n/nr2, n%nr2, pBuff[k]);
+				else PutItem(n%nr2, n/nr2, pBuff[k]);
+			}
+		}
+		delete[] compPos;
+		delete[] compId;
+		delete[] pBuff;
+	}
+	else if (IsBlockFormat())
+	{
+		index_t* compPos = m_compPos; m_compPos = new index_t[m_compSize=nc2+1];
+		memset(m_compPos, 0xff, m_compSize*sizeof(index_t));
+		if (m_blockCnt==0) { delete[] compPos; return true; }
+
+		m_blockCnt = 0;
+		ElemType* pBuff = m_pBuffer; m_pBuffer = new ElemType[m_buffSize];
+		for (size_t j=0; j<nc1; ++j)
+		{
+			size_t k = compPos[j]; if (k==string::npos) continue;
+			ElemType* p = pBuff + k*nr1;
+			for (size_t i=0; i<nr1; ++i)
+			{
+				if (*p==0) { ++p; continue; }
+				size_t n = j*nr1 + i;
+				if (rmf) PutItem(n/nr2, n%nr2, *p++);
+				else PutItem(n%nr2, n/nr2, *p++);
+			}
+		}
+		delete[] compPos;
+		delete[] pBuff;
+	}
+	return true;
 }
 
 template<class ElemType>
@@ -1241,6 +1303,7 @@ public:
 	void Assign(const BaseMatrix<ElemType>& mat, bool shallow = false);
 	void Resize(size_t rows, size_t cols);
 	void ResizeBack() { m_numRows = m_sob->GetNumRows(); m_numCols = m_sob->GetNumCols(); m_sliceOffset = 0; }
+	void Reshape(size_t rows, size_t cols);
 
 	string Format() const { return m_sob->Format(); }
 	MatrixFormat GetFormat() const { return m_sob->GetFormat(); }
@@ -1284,8 +1347,6 @@ public:
 	int  Compare(const BaseMatrix<ElemType>& mat) const;
 
 	// sparse format
-	//int    GetColIdx() const { return m_sob->GetColIdx(); }
-	//size_t GetCompPosSize() const { return m_sob->GetCompPosSize(); }
 	size_t GetBlockCount() const { return m_sob->GetBlockCount(); }
 
 	//index_t* GetPrimePos() const { return m_sob->GetCompPos() + m_sliceOffset; }
@@ -1306,17 +1367,6 @@ public:
 
 	void SetSlice(size_t offset, size_t len);
 	void SetColumnSlice(size_t offset, size_t len);
-
-	//void SetBuffer(ElemType* parray, size_t alloc, bool external = false) { m_sob->SetBuffer(parray, alloc, external); }
-
-	// sparse format
-	//void SetColIdx(int idx) { m_sob->SetColIdx(idx); }
-	//void SetCompPosSize(size_t indexSize) { m_sob->SetCompPosSize(indexSize); }
-	//void SetBlockCount(size_t blockSize) { m_sob->SetBlockCount(blockSize); }
-
-	//void SetCompPos(index_t* parray) { m_sob->SetCompPos(parray); }
-	//void SetCompId(index_t* parray) { m_sob->SetCompId(parray); }
-	//void SetBlockId(size_t* blockIds) { m_sob->SetBlockId(blockIds); }
 
 	// gpu
 	//void* GetTempHostBuffer() const { return m_sob->GetTempHostBuffer(); }

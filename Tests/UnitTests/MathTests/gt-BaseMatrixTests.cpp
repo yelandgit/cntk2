@@ -383,9 +383,8 @@ static void TestMakeFullBlock(MatrixFormat mft)
 
 static void TestTransposeTo(MatrixFormat mft)
 {
-	std::array<float, 12> array = { 0, 2, 0, 4, 5, 6, 0, 8, 9, 0, 0, 0 };
-
 	BaseMatrix<float> m1(mft);
+	std::array<float, 12> array = { 0, 2, 0, 4, 5, 6, 0, 8, 9, 0, 0, 0 };
 	m1.Assign(3, 4, array.data(), matrixFlagNone);
 
 	cout << "    matrix " << m1.Format() << endl;
@@ -406,6 +405,42 @@ TEST_F(BaseMatrixTest, TransposeTo)
 	TestTransposeTo(matrixFormatSparseCSR);
 	TestTransposeTo(matrixFormatSparseBSC);
 	TestTransposeTo(matrixFormatSparseBSR);
+}
+
+static void TestReshape(MatrixFormat mft)
+{
+	BaseMatrix<float> m1;
+	std::array<float, 12> array = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+	m1.Init(mft); m1.Assign(3, 4, array.data(), matrixFlagNone);
+
+	cout << "    matrix " << m1.Format() << endl;
+
+	size_t rows = 4;
+	size_t cols = 3;
+	BaseMatrix<float> m2;
+	m2.Assign(m1); m2.Reshape(rows,cols);
+	for (size_t j=0; j<m1.GetNumCols(); ++j)
+	for (size_t i=0; i<m1.GetNumRows(); ++i)
+		if (mft & matrixFormatRowMajor)
+		{
+			size_t n = i*m1.GetNumCols() + j;
+			ASSERT_EQ(m1.GetItem(i,j), m2.GetItem(n/cols,n%cols));
+		}
+		else
+		{
+			size_t n = j*m1.GetNumRows() + i;
+			ASSERT_EQ(m1.GetItem(i,j), m2.GetItem(n%rows,n/rows));
+		}
+}
+
+TEST_F(BaseMatrixTest, Reshape)
+{
+	TestReshape(matrixFormatDenseCol);
+	TestReshape(matrixFormatDenseRow);
+	TestReshape(matrixFormatSparseCSC);
+	TestReshape(matrixFormatSparseCSR);
+	TestReshape(matrixFormatSparseBSC);
+	TestReshape(matrixFormatSparseBSR);
 }
 
 } } } }
