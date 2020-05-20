@@ -96,6 +96,20 @@ void BaseMatrix<ElemType>::SetColumnSlice(size_t start, size_t len)
 	m_numCols = len;
 }
 
+template<class ElemType>
+void BaseMatrix<ElemType>::GetSparseData(SparseData<ElemType>& v) const
+{
+	v.clear(); if (IsEmpty()) return;
+	size_t nc = (m_sob->IsRowMajor()) ? m_numRows : m_numCols;
+	m_sob->GetSparseData(v, m_sliceOffset, nc);
+}
+
+template<class ElemType>
+void BaseMatrix<ElemType>::PutSparseData(const SparseData<ElemType>& v)
+{
+	if (!IsEmpty()) m_sob->PutSparseData(v);
+}
+
 //template<class ElemType>
 //size_t BaseMatrix<ElemType>::NzCount() const
 //{

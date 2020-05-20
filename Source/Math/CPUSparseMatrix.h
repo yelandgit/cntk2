@@ -5,7 +5,8 @@
 #pragma once
 
 #include <stdio.h>
-#include "CPUMatrix.h"
+#include "BaseMatrix.h"
+//#include "CPUMatrix.h"
 //#include "GPUMatrix.h"
 //#include "GPUSparseMatrix.h"
 //#include <map>
@@ -22,14 +23,14 @@ class MATH_API CPUSparseMatrix : public BaseMatrix<ElemType>
 
 public:
 	explicit CPUSparseMatrix(int flags=0) : Base(MatrixFormat(matrixFormatSparse|flags), CPUDEVICE) {}
-	CPUSparseMatrix(size_t rows, size_t cols, size_t n=0, int flags=0) : Base(MatrixFormat(matrixFormatSparse|flags), CPUDEVICE) { Create(rows,cols); if (n) Allocate(n); }
+	CPUSparseMatrix(size_t rows, size_t cols, size_t n=0, int flags=0) : Base(MatrixFormat(matrixFormatSparse|flags), CPUDEVICE) { Resize(rows,cols); if (n) Allocate(n); }
 ///	CPUSparseMatrix(const CPUSparseMatrix<ElemType>& copyFrom) { Assign(copyFrom); }
 ///	CPUSparseMatrix<ElemType>& operator=(const CPUSparseMatrix<ElemType>& copyFrom) { if (&copyFrom!=this) Assign(copyFrom); return *this; }
 ///	CPUSparseMatrix(CPUSparseMatrix<ElemType>&& moveFrom) { Assign(moveFrom,true); moveFrom.Release(); }
 ///	CPUSparseMatrix<ElemType>& operator=(CPUSparseMatrix<ElemType>&& moveFrom) { if (&moveFrom!=this) { Assign(moveFrom); moveFrom.Release(); } return *this; }
 
 public:
-///	void SetValue(size_t row, size_t col, ElemType val) { PutItem(row, col, val); }
+///	//void SetValue(size_t row, size_t col, ElemType val) { PutItem(row, col, val); }
 ///	//void SetValue(const CPUMatrix<ElemType>& mat);
 ///	//void SetValue(const GPUMatrix<ElemType>& mat);
 ///	void SetValue(const CPUSparseMatrix<ElemType>& mat);
@@ -58,9 +59,9 @@ public:
 ///	CPUSparseMatrix<ElemType> CopyToSparse() const { CPUSparseMatrix<ElemType> dm; Base::CopyToSparse(dm); return dm; }
 ///	CPUSparseMatrix<ElemType> CopyToBlock() const { CPUSparseMatrix<ElemType> dm; Base::CopyToBlock(dm); return dm; }
 ///	void ConvertToFullBlock() { m_sob->MakeFullBlock(); }
-///
+
 ///	CPUSparseMatrix<ElemType> Transpose(bool hdr=false) const { CPUSparseMatrix<ElemType> sm; sm.TransposeFrom(*this,hdr); return sm; }
-///
+
 ///	void SetGaussianRandomValue(ElemType /*mean*/, ElemType /*sigma*/, unsigned long /*seed*/)
 ///	{
 ///		NOT_IMPLEMENTED;
@@ -115,27 +116,27 @@ public:
 	// Allocate actually allocates the storage space for numNzElem elements. This is different than resizing, which changes the dimensions of the underlying matrix.
 	// Unfortunately numRows/numCols need to be passed in the case of various matrix formats (e.g., SparseCSC), because some of the dimensions allocated depend on the
 	// dimensions of the matrix.
-///	void Allocate(size_t numRows, size_t numCols, size_t numNzElem = 10000, bool growOnly = true, bool keepval = false); // matrix format will affect the size to allocate
+	//void Allocate(size_t numRows, size_t numCols, size_t numNzElem = 10000, bool growOnly = true, bool keepval = false); // matrix format will affect the size to allocate
 	// RequireSizeAndAllocate is required by SpasreMatrix since resizing the dimensions and allocating storage are different operations. Since a Resize can entail changing
 	// MatrixFormat, we offer an overload for that case.
-///	void RequireSizeAndAllocate(size_t numRows, size_t numCols, size_t numNzElem, MatrixFormat mft, bool growOnly = true, bool keepval = true); // matrix format will affect the size to allocate
+	//void RequireSizeAndAllocate(size_t numRows, size_t numCols, size_t numNzElem, MatrixFormat mft, bool growOnly = true, bool keepval = true); // matrix format will affect the size to allocate
 	// Otherwise we will just use the current MatrixFormat.
-	void RequireSizeAndAllocate(size_t numRows, size_t numCols, size_t numNzElem = 10000, bool growOnly = true, bool keepval = false);
+	//void RequireSizeAndAllocate(size_t numRows, size_t numCols, size_t numNzElem = 10000, bool growOnly = true, bool keepval = false);
 	// Sparse matrix RequireSize is similar to dense matrix RequireSize in that it will only allocate the minimum amount of storage required to successfully create the matrix.
 	// This is required because some formats (e.g., SparseCSC) require the SecondIndexLocation to have valid data in order to compute m_nz. Otherwise this method would not
 	// update the storage at all.
-///	void RequireSize(size_t numRows, size_t numCols, size_t numNzElem, MatrixFormat mft, bool growOnly = true);
-///	void RequireSize(size_t numRows, size_t numCols, MatrixFormat mft, bool growOnly = true) { return RequireSize(numRows, numCols, 0, mft, growOnly); }
-///	void RequireSize(size_t numRows, size_t numCols, bool growOnly = true);
+	//void RequireSize(size_t numRows, size_t numCols, size_t numNzElem, MatrixFormat mft, bool growOnly = true);
+	//void RequireSize(size_t numRows, size_t numCols, MatrixFormat mft, bool growOnly = true) { return RequireSize(numRows, numCols, 0, mft, growOnly); }
+	//void RequireSize(size_t numRows, size_t numCols, bool growOnly = true);
 	// Resizes the dimensions of the underlying sparse matrix object. Since the caller may have a hint for m_nz, we allow that to be passed, but this is terrible design. In the
 	// future if we want better separation between allocation and resizing, this interface should be updated to be less clunky.
-///	void Resize(size_t numRows, size_t numCols, size_t numNz, MatrixFormat mft, bool growOnly = true); // matrix format will affect the size to allocate
-///	void Resize(size_t numRows, size_t numCols, size_t numNz, bool growOnly = true);
-///	using Base::Resize;
+	//void Resize(size_t numRows, size_t numCols, size_t numNz, MatrixFormat mft, bool growOnly = true); // matrix format will affect the size to allocate
+	//void Resize(size_t numRows, size_t numCols, size_t numNz, bool growOnly = true);
+	//using Base::Resize;
 
-///	void Reset();
+	//void Reset();
 
-///	ElemType operator()(size_t row, size_t col) const { return GetItem(row, col); }
+	ElemType operator()(size_t row, size_t col) const { return GetItem(row, col); }
 
 public:
 ///	void NormalGrad(CPUMatrix<ElemType>& c, ElemType momentum, ElemType unitGainFactor) { NOT_IMPLEMENTED }

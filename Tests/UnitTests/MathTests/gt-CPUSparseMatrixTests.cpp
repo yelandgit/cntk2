@@ -3,18 +3,19 @@
 // Licensed under the MIT license. See LICENSE.md file in the project root for full license information.
 //
 #include "stdafx.h"
-///#ifdef _WIN32
-///#include <crtdefs.h>
-///#endif
-///#include "Math/CPUSparseMatrix.h"
+//#ifdef _WIN32
+//#include <crtdefs.h>
+//#endif
+#include "Math/CPUMatrix.h"
+#include "Math/CPUSparseMatrix.h"
 #include "gtest/gtest.h"
 
 using namespace Microsoft::MSR::CNTK;
 
 namespace Microsoft { namespace MSR { namespace CNTK { namespace Test {
 
-//typedef CPUDoubleSparseMatrix SparseMatrix;
-//typedef CPUDoubleMatrix DenseMatrix;
+typedef CPUSingleMatrix DenseMatrix;
+typedef CPUSingleSparseMatrix SparseMatrix;
 
 class CPUSparseMatrixTests : public ::testing::Test
 {

@@ -6,6 +6,7 @@
 #include "stdafx.h"
 #include "Math/BaseMatrix.h"
 #include "gtest/gtest.h"
+#include <algorithm>
 
 using namespace Microsoft::MSR::CNTK;
 
@@ -381,6 +382,142 @@ static void TestMakeFullBlock(MatrixFormat mft)
 	ASSERT_TRUE(m2.IsEqualTo(m1));
 }
 
+TEST_F(BaseMatrixTest, MakeFullBlock)
+{
+	TestMakeFullBlock(matrixFormatDenseCol);
+	TestMakeFullBlock(matrixFormatDenseRow);
+	TestMakeFullBlock(matrixFormatSparseCSC);
+	TestMakeFullBlock(matrixFormatSparseCSR);
+	TestMakeFullBlock(matrixFormatSparseBSC);
+	TestMakeFullBlock(matrixFormatSparseBSR);
+}
+
+static void TestGetPutSparseData(MatrixFormat mft)
+{
+	std::array<float, 12> array = { 0, 2, 0, 4, 0, 6, 0, 8, 0, 10, 0, 12 };
+	BaseMatrix<float> m1(mft);
+	m1.Assign(3, 4, array.data());
+
+	cout << "    matrix " << m1.Format() << endl;
+
+	// whole matrix
+	SparseData<float> v; m1.GetSparseData(v);
+	ASSERT_EQ(v.size(), 6);
+	if (m1.IsRowMajor())
+	{
+		ASSERT_EQ(v[0].row, 0);
+		ASSERT_EQ(v[0].col, 1);
+		ASSERT_EQ(v[1].row, 0);
+		ASSERT_EQ(v[1].col, 3);
+		ASSERT_EQ(v[2].row, 1);
+		ASSERT_EQ(v[2].col, 1);
+		ASSERT_EQ(v[3].row, 1);
+		ASSERT_EQ(v[3].col, 3);
+		ASSERT_EQ(v[4].row, 2);
+		ASSERT_EQ(v[4].col, 1);
+		ASSERT_EQ(v[5].row, 2);
+		ASSERT_EQ(v[5].col, 3);
+	}
+	else
+	{
+		ASSERT_EQ(v[0].row, 1);
+		ASSERT_EQ(v[0].col, 0);
+		ASSERT_EQ(v[0].row, 1);
+		ASSERT_EQ(v[0].col, 0);
+		ASSERT_EQ(v[1].row, 0);
+		ASSERT_EQ(v[1].col, 1);
+		ASSERT_EQ(v[2].row, 2);
+		ASSERT_EQ(v[2].col, 1);
+		ASSERT_EQ(v[3].row, 1);
+		ASSERT_EQ(v[3].col, 2);
+		ASSERT_EQ(v[4].row, 0);
+		ASSERT_EQ(v[4].col, 3);
+		ASSERT_EQ(v[5].row, 2);
+		ASSERT_EQ(v[5].col, 3);
+	}
+	// slice
+	m1.SetSlice(1,2);
+	m1.GetSparseData(v);
+	if (m1.IsRowMajor())
+	{
+		ASSERT_EQ(v.size(), 4);
+		ASSERT_EQ(v[0].row, 0);
+		ASSERT_EQ(v[0].col, 1);
+		ASSERT_EQ(v[1].row, 0);
+		ASSERT_EQ(v[1].col, 3);
+		ASSERT_EQ(v[2].row, 1);
+		ASSERT_EQ(v[2].col, 1);
+		ASSERT_EQ(v[3].row, 1);
+		ASSERT_EQ(v[3].col, 3);
+	}
+	else
+	{
+		ASSERT_EQ(v.size(), 3);
+		ASSERT_EQ(v[0].row, 0);
+		ASSERT_EQ(v[0].col, 0);
+		ASSERT_EQ(v[1].row, 2);
+		ASSERT_EQ(v[1].col, 0);
+		ASSERT_EQ(v[2].row, 1);
+		ASSERT_EQ(v[2].col, 1);
+	}
+	// assign whole matrix
+	BaseMatrix<float> m2(mft);
+	m2.Resize(m1.GetNumRows(), m1.GetNumCols());
+	m2.PutSparseData(v);
+	ASSERT_TRUE(m2.IsEqualTo(m1));
+}
+
+TEST_F(BaseMatrixTest, GetPutSparseData)
+{
+	TestGetPutSparseData(matrixFormatDenseCol);
+	TestGetPutSparseData(matrixFormatDenseRow);
+	TestGetPutSparseData(matrixFormatSparseCSC);
+	TestGetPutSparseData(matrixFormatSparseCSR);
+	TestGetPutSparseData(matrixFormatSparseBSC);
+	TestGetPutSparseData(matrixFormatSparseBSR);
+}
+
+static void Random(SparseData<float>& v, size_t rows, size_t cols, size_t n=0)
+{
+	v.clear();
+	if (n==0)
+	{
+		// whole matrix
+		v.reserve(rows*cols);
+		for (size_t j=0; j<cols; ++j)
+		for (size_t i=0; i<rows; ++i)
+			v.push_back(ElemItem<float>(i, j, float(0.01*(rand() % 100))));
+		return;
+	}
+	v.reserve(n<rows*cols ? n : n=rows*cols);
+	while (v.size()<n)
+	{
+		while (v.size()<n)
+		{
+			float val = float(0.01*(rand() % 100)); if (val==0) continue;
+			size_t r = rand() % rows, c = rand() % cols;
+			v.push_back(ElemItem<float>(r,c,val));
+		}
+		v.SortByCols();
+		ElemItem<float> pi(-1,-1);
+		for (SparseData<float>::iterator i=v.begin(); i!=v.end(); )
+			if ((*i).row==pi.row && (*i).col==pi.col) i = v.erase(i);
+			else pi = *i++;
+	}
+}
+
+static void CheckTransposeTo(MatrixFormat mft)
+{
+	BaseMatrix<float> m(mft); m.Resize(100,10000);
+	SparseData<float> spd; Random(spd, m.GetNumRows(), m.GetNumCols(), 100000);
+	//v.ViewIndex(cout,1);
+
+	DWORD t1 = GetTickCount();
+	m.PutSparseData(spd);
+	DWORD t2 = GetTickCount();
+	cout << "  done in " << (t2-t1) << " ms" << endl;
+}
+
 static void TestTransposeTo(MatrixFormat mft)
 {
 	BaseMatrix<float> m1(mft);
@@ -399,6 +536,9 @@ static void TestTransposeTo(MatrixFormat mft)
 
 TEST_F(BaseMatrixTest, TransposeTo)
 {
+	//CheckTransposeTo(matrixFormatDenseCol);
+	//CheckTransposeTo(matrixFormatSparseBSR);
+
 	TestTransposeTo(matrixFormatDenseCol);
 	TestTransposeTo(matrixFormatDenseRow);
 	TestTransposeTo(matrixFormatSparseCSC);

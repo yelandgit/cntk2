@@ -40,11 +40,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///	Resize(rows, cols);
 ///	if (n) Allocate(n);
 ///}
-///
-////-------------------------------------------------------------------------
-//// construction and conversion
-////-------------------------------------------------------------------------
-///
+
 ///template <class ElemType>
 ///void CPUSparseMatrix<ElemType>::SetDiagonalValue(ElemType v)
 ///{
@@ -1653,9 +1649,9 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///	return stream;
 ///}
 
-///template class CPUSparseMatrix<half>;
-///template class CPUSparseMatrix<float>;
-///template class CPUSparseMatrix<double>;
+template class CPUSparseMatrix<half>;
+template class CPUSparseMatrix<float>;
+template class CPUSparseMatrix<double>;
 
 
 // instantiate learner methods
