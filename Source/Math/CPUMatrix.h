@@ -21,14 +21,10 @@
 //#include "CPUSparseMatrix.h"
 //#include "GPUSparseMatrix.h"
 
-// NOTE NOTE NOTE:
-// use CPUSingleMatrix and CPUDoubleMatrix instead of using the template directly
-///////////////////////////////////////////////
 
-// This class is exported from the Math.dll
 namespace Microsoft { namespace MSR { namespace CNTK {
 
-template<class> class CPUSparseMatrix2;
+template<class> class CPUSparseMatrix;
 
 //double logadd(double x, double y);
 
@@ -59,8 +55,8 @@ public:
 //	void CopyColumnsStrided(const CPUMatrix<ElemType>& fromMatrix, size_t numCols, size_t srcNumColsStride, size_t destNumColsStride);
 //
 //	CPUMatrix<ElemType> Diagonal() const;
-//	CPUSparseMatrix2<ElemType> CopyToSparse() const { CPUSparseMatrix2<ElemType> sm; Base::CopyToSparse(sm); return sm; }
-//	CPUSparseMatrix2<ElemType> CopyToBlock() const { CPUSparseMatrix2<ElemType> sm; Base::CopyToBlock(sm); return sm; }
+//	CPUSparseMatrix<ElemType> CopyToSparse() const { CPUSparseMatrix<ElemType> sm; Base::CopyToSparse(sm); return sm; }
+//	CPUSparseMatrix<ElemType> CopyToBlock() const { CPUSparseMatrix<ElemType> sm; Base::CopyToBlock(sm); return sm; }
 
 	ElemType Adagrad(CPUMatrix<ElemType>& gradients, bool needAveMultiplier);
 	void FSAdagrad(CPUMatrix<ElemType>& gradients, CPUMatrix<ElemType>& functionValues, ElemType learnRatePerSample, 
@@ -416,8 +412,8 @@ public:
 	static void ScaleAndAdd(ElemType alpha, const CPUMatrix<ElemType>& a, CPUMatrix<ElemType>& c);
 	static void AddScaledDifference(ElemType alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c);
 	static void AssignScaledDifference(ElemType alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c);
-//	static void AddScaledDifference(const CPUMatrix<ElemType>& alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c);    // alpha must be 1x1
-//	static void AssignScaledDifference(const CPUMatrix<ElemType>& alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c); // alpha must be 1x1
+	//static void AddScaledDifference(const CPUMatrix<ElemType>& alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c);    // alpha must be 1x1
+	//static void AssignScaledDifference(const CPUMatrix<ElemType>& alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c); // alpha must be 1x1
 
 	static void InnerProduct(const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c, bool isColWise);
 	static ElemType InnerProductOfMatrices(const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& b);

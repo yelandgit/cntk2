@@ -11,10 +11,10 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 //			TracingGPUMemoryAllocator
 //==============================================================================
 
-int TracingGPUMemoryAllocator::m_traceLevel = 0;
-
-void TracingGPUMemoryAllocator::SetTraceLevel(int traceLevel) { m_traceLevel = traceLevel; }
-bool TracingGPUMemoryAllocator::IsTraceEnabled() { return (m_traceLevel > 0); }
+//int TracingGPUMemoryAllocator::m_traceLevel = 0;
+//
+//void TracingGPUMemoryAllocator::SetTraceLevel(int traceLevel) { m_traceLevel = traceLevel; }
+//bool TracingGPUMemoryAllocator::IsTraceEnabled() { return (m_traceLevel > 0); }
 
 //==============================================================================
 //			BaseMatrix

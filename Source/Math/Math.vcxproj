@@ -170,6 +170,7 @@
     <ClInclude Include="BaseMatrix.h" />
     <ClInclude Include="CPUMatrix.h" />
     <ClInclude Include="CPURNGHandle.h" />
+    <ClInclude Include="CPUSparseMatrix.h" />
     <ClInclude Include="GPURNGHandle.h" />
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="RNGHandle.h" />
@@ -180,6 +181,7 @@
   <ItemGroup>
     <ClCompile Include="BaseMatrix.cpp" />
     <ClCompile Include="CPUMatrix.cpp" />
+    <ClCompile Include="CPUSparseMatrix.cpp" />
     <ClCompile Include="RNGHandle.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

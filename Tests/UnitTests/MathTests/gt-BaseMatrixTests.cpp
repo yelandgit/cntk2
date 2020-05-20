@@ -40,15 +40,15 @@ static void CheckBaseMatrixStorage(MatrixFormat mft)
 	cout << endl; m.ViewBuffer(cout);
 }
 
-TEST_F(BaseMatrixTest, BaseMatrixStorage)
-{
-	//CheckBaseMatrixStorage(matrixFormatDenseCol);
-	//CheckBaseMatrixStorage(matrixFormatDenseRow);
-	//CheckBaseMatrixStorage(matrixFormatSparseCSC);
-	//CheckBaseMatrixStorage(matrixFormatSparseCSR);
-	//CheckBaseMatrixStorage(matrixFormatSparseBSC);
-	//CheckBaseMatrixStorage(matrixFormatSparseBSR);
-}
+//TEST_F(BaseMatrixTest, BaseMatrixStorage)
+//{
+//	CheckBaseMatrixStorage(matrixFormatDenseCol);
+//	CheckBaseMatrixStorage(matrixFormatDenseRow);
+//	CheckBaseMatrixStorage(matrixFormatSparseCSC);
+//	CheckBaseMatrixStorage(matrixFormatSparseCSR);
+//	CheckBaseMatrixStorage(matrixFormatSparseBSC);
+//	CheckBaseMatrixStorage(matrixFormatSparseBSR);
+//}
 
 TEST_F(BaseMatrixTest, ConstructorNoFlags)
 {
@@ -419,18 +419,24 @@ static void TestReshape(MatrixFormat mft)
 	size_t cols = 3;
 	BaseMatrix<float> m2;
 	m2.Assign(m1); m2.Reshape(rows,cols);
-	for (size_t j=0; j<m1.GetNumCols(); ++j)
-	for (size_t i=0; i<m1.GetNumRows(); ++i)
-		if (mft & matrixFormatRowMajor)
+	if (mft & matrixFormatRowMajor)
+	{
+		for (size_t j=0; j<m1.GetNumCols(); ++j)
+		for (size_t i=0; i<m1.GetNumRows(); ++i)
 		{
 			size_t n = i*m1.GetNumCols() + j;
 			ASSERT_EQ(m1.GetItem(i,j), m2.GetItem(n/cols,n%cols));
 		}
-		else
+	}
+	else
+	{
+		for (size_t j=0; j<m1.GetNumCols(); ++j)
+		for (size_t i=0; i<m1.GetNumRows(); ++i)
 		{
 			size_t n = j*m1.GetNumRows() + i;
 			ASSERT_EQ(m1.GetItem(i,j), m2.GetItem(n%rows,n/rows));
 		}
+	}
 }
 
 TEST_F(BaseMatrixTest, Reshape)

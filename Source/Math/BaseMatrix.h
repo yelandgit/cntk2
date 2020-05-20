@@ -51,32 +51,32 @@ inline size_t buffsize(size_t n, size_t m=2) { return (n + (m-1)) & ~(m-1); }
 //		TracingGPUMemoryAllocator
 //==============================================================================
 
-class MATH_API TracingGPUMemoryAllocator
-{
-private:
-	static int m_traceLevel;
-
-public:
-	static void SetTraceLevel(int traceLevel);
-	static bool IsTraceEnabled();
-
-	template <typename AllocatedElemType>
-	static AllocatedElemType* Allocate(device_t dev, size_t numRows, size_t numCols);
-
-	template <typename AllocatedElemType>
-	static AllocatedElemType* Allocate(device_t dev, size_t numElements);
-
-	template <typename AllocatedElemType>
-	static void Free(device_t dev, AllocatedElemType* bufferPtr, bool ignoreCUDARetCode = false);
-
-	// Let it be public method, the memory manager could check the totoal free memory and
-	// decide whether to physically release all the cached memory.
-	static std::pair<size_t, size_t> GetFreeAndTotalMemoryInMBs(device_t dev);
-
-private:
-	template <typename AllocatedElemType>
-	static AllocatedElemType* AllocateNoTrace(device_t dev, size_t numElements);
-};
+//class MATH_API TracingGPUMemoryAllocator
+//{
+//private:
+//	static int m_traceLevel;
+//
+//public:
+//	static void SetTraceLevel(int traceLevel);
+//	static bool IsTraceEnabled();
+//
+//	template <typename AllocatedElemType>
+//	static AllocatedElemType* Allocate(device_t dev, size_t numRows, size_t numCols);
+//
+//	template <typename AllocatedElemType>
+//	static AllocatedElemType* Allocate(device_t dev, size_t numElements);
+//
+//	template <typename AllocatedElemType>
+//	static void Free(device_t dev, AllocatedElemType* bufferPtr, bool ignoreCUDARetCode = false);
+//
+//	// Let it be public method, the memory manager could check the totoal free memory and
+//	// decide whether to physically release all the cached memory.
+//	static std::pair<size_t, size_t> GetFreeAndTotalMemoryInMBs(device_t dev);
+//
+//private:
+//	template <typename AllocatedElemType>
+//	static AllocatedElemType* AllocateNoTrace(device_t dev, size_t numElements);
+//};
 
 //==============================================================================
 //		ElementWiseOperator
@@ -257,7 +257,10 @@ enum MatrixFormat : int
 
 	matrixFormatMask			= matrixFormatSparse + matrixFormatRowMajor + matrixFormatBlock,
 	matrixFormatSparseBlock		= matrixFormatSparse + matrixFormatBlock,
+};
 
+enum MatrixFlags : int
+{
 	matrixFlagNone				= 0,
 	matrixFlagExternalBuffer	= 0x0010,		// the memory pointers are externally managed
 	matrixFlagSetValueOnDevice	= 0x0020,		// SetValue() call has a buffer that is already on the device
