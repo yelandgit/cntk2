@@ -53,6 +53,7 @@ void BaseMatrix<ElemType>::Resize(size_t rows, size_t cols)
 	m_numRows = rows; m_numCols = cols;
 	if (m_sob==nullptr) m_sob = make_shared<BaseMatrixStorage<ElemType>>(matrixFormatDense, CPUDEVICE);
 	if (rows!=m_sob->GetNumRows() || cols!=m_sob->GetNumCols()) m_sob->Create(rows, cols);
+	else m_sob->SetZeros();
 }
 
 template<class ElemType>

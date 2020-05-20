@@ -168,11 +168,19 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BaseMatrix.h" />
+    <ClInclude Include="CPUMatrix.h" />
+    <ClInclude Include="CPURNGHandle.h" />
+    <ClInclude Include="GPURNGHandle.h" />
+    <ClInclude Include="Helpers.h" />
+    <ClInclude Include="RNGHandle.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="TensorOps.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BaseMatrix.cpp" />
+    <ClCompile Include="CPUMatrix.cpp" />
+    <ClCompile Include="RNGHandle.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -186,6 +194,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="GPURNGHandle.cu" />
     <None Include="prelink.bat" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

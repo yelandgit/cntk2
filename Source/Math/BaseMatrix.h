@@ -213,32 +213,32 @@ enum ElementWiseOperator
 //		various enums to describe
 //==============================================================================
 
-///enum class MatrixOrder
-///{
-///    RowMajor = 101,
-///    ColMajor = 102
-///};
-///
-///enum class MatrixTranspose : char
-///{
-///    NoTrans = 'N',
-///    Trans = 'T',
-///    ConjTrans = 'C'
-///};
-///
-///enum class SymMatrixType : char
-///{
-///    Up = 'U',				// symmetric matrix is stored in the upper part
-///    Low = 'L',				// symmetric matrix is stored in the lower part
-///    Full = 'F',				// full populated
-///    NotSymmetric = 'N'		// not a symmetric matrix
-///};
-///
-///enum class MatrixOpSide : char
-///{
-///    Left = 'L',				// left multiply
-///    Right = 'R',			// right multiply
-///};
+enum class MatrixOrder
+{
+    RowMajor = 101,
+    ColMajor = 102
+};
+
+enum class MatrixTranspose : char
+{
+    NoTrans = 'N',
+    Trans = 'T',
+    ConjTrans = 'C'
+};
+
+enum class SymMatrixType : char
+{
+    Up = 'U',				// symmetric matrix is stored in the upper part
+    Low = 'L',				// symmetric matrix is stored in the lower part
+    Full = 'F',				// full populated
+    NotSymmetric = 'N'		// not a symmetric matrix
+};
+
+enum class MatrixOpSide : char
+{
+    Left = 'L',				// left multiply
+    Right = 'R',			// right multiply
+};
 
 enum MatrixFormat : int
 {
@@ -564,6 +564,7 @@ size_t BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols)
 template<class ElemType>
 void BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols, ElemType* p, int flags)
 {
+	m_format = MatrixFormat(m_format | (flags & matrixFormatRowMajor));
 	if (IsDenseFormat())
 	{
 		if (flags & matrixFlagExternalBuffer)
@@ -922,39 +923,41 @@ void BaseMatrixStorage<ElemType>::TransposeFrom(const BaseMatrixStorage<ElemType
 {
 	Init(bms.m_format);
 	Create(bms.m_numCols, bms.m_numRows);
+	if (!IsEmpty())
+	{
+		bool rmf = IsRowMajor();
+		size_t nc = (m_format & matrixFormatRowMajor) ? bms.m_numRows : bms.m_numCols;
+		size_t nr = (m_format & matrixFormatRowMajor) ? bms.m_numCols : bms.m_numRows;
 
-	bool rmf = IsRowMajor();
-	size_t nc = (m_format & matrixFormatRowMajor) ? bms.m_numRows : bms.m_numCols;
-	size_t nr = (m_format & matrixFormatRowMajor) ? bms.m_numCols : bms.m_numRows;
-
-	if (IsDenseFormat())
-	{
-		const ElemType* src = bms.m_pBuffer;
-		for (size_t j=0; j<nc; ++j)
+		if (IsDenseFormat())
 		{
-			ElemType* po = m_pBuffer + j;
-			for (size_t i=0; i<nr; ++i) { *po = *src++; po += nc; }
+			const ElemType* src = bms.m_pBuffer;
+			for (size_t j=0; j<nc; ++j)
+			{
+				ElemType* po = m_pBuffer + j;
+				for (size_t i=0; i<nr; ++i) { *po = *src++; po += nc; }
+			}
 		}
-	}
-	else if (IsSparseFormat() && bms.m_compPos[nc]>0)
-	{
-		Allocate(bms.m_compPos[nc]);
-		for (size_t j=0; j<nc; ++j)
+		else if (IsSparseFormat() && bms.m_compPos[nc]>0)
 		{
-			size_t ns = bms.m_compPos[j], ne = bms.m_compPos[j+1];
-			if (rmf) for (size_t i=ns; i<ne; ++i) PutItem(bms.m_compId[i], j, bms.m_pBuffer[i]);
-			else for (size_t i=ns; i<ne; ++i) PutItem(j, bms.m_compId[i], bms.m_pBuffer[i]);
+			Allocate(bms.m_compPos[nc]);
+			for (size_t j=0; j<nc; ++j)
+			{
+				size_t ns = bms.m_compPos[j], ne = bms.m_compPos[j+1];
+				if (rmf) for (size_t i=ns; i<ne; ++i) PutItem(bms.m_compId[i], j, bms.m_pBuffer[i]);
+				else for (size_t i=ns; i<ne; ++i) PutItem(j, bms.m_compId[i], bms.m_pBuffer[i]);
+			}
 		}
-	}
-	else if (IsBlockFormat() && bms.m_blockCnt>0)
-	{
-		Allocate(bms.m_blockCnt*nr);
-		for (size_t j=0; j<nc; ++j)
+		else if (IsBlockFormat() && bms.m_blockCnt>0)
 		{
-			size_t k = bms.m_compPos[j]; if (k==string::npos) continue;
-			const ElemType* p = bms.m_pBuffer + k*nr;
-			if (rmf) for (size_t i=0; i<nr; ++i) { if (*p++) PutItem(i,j,p[-1]); }
-			else for (size_t i=0; i<nr; ++i) { if (*p++) PutItem(j,i,p[-1]); }
+			Allocate(bms.m_blockCnt*nr);
+			for (size_t j=0; j<nc; ++j)
+			{
+				size_t k = bms.m_compPos[j]; if (k==string::npos) continue;
+				const ElemType* p = bms.m_pBuffer + k*nr;
+				if (rmf) for (size_t i=0; i<nr; ++i) { if (*p++) PutItem(i,j,p[-1]); }
+				else for (size_t i=0; i<nr; ++i) { if (*p++) PutItem(j,i,p[-1]); }
+			}
 		}
 	}
 	if (hdr) Transpose();
@@ -1093,8 +1096,8 @@ void BaseMatrixStorage<ElemType>::PutItem(size_t row, size_t col, ElemType val, 
 template <class ElemType>
 void BaseMatrixStorage<ElemType>::SetZeros()
 {
-	size_t n = m_numRows * m_numCols; if (n==0) return;
-	memset(m_pBuffer, 0, (n>m_buffSize ? m_buffSize:n)*sizeof(ElemType));
+	size_t n = m_numRows * m_numCols; if (n==0 || m_buffSize==0) return;
+	memset(m_pBuffer, 0, (n<m_buffSize ? n:m_buffSize)*sizeof(ElemType));
 }
 
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -1281,7 +1284,7 @@ void BaseMatrixStorage<ElemType>::ViewIds(ostream& os) const
 template <class ElemType>
 class MATH_API BaseMatrix
 {
-private:
+protected:
 	size_t			m_numRows;
 	size_t			m_numCols;
 	size_t			m_sliceOffset;
@@ -1299,7 +1302,7 @@ public:
 	void Init() { m_sob->SetZeros(); }
 	void Reset() { m_sob->Reset(); ResizeBack(); }
 
-	void Assign(size_t rows, size_t cols, ElemType* p, int flags);
+	void Assign(size_t rows, size_t cols, ElemType* p, int flags=matrixFlagNone);
 	void Assign(const BaseMatrix<ElemType>& mat, bool shallow = false);
 	void Resize(size_t rows, size_t cols);
 	void ResizeBack() { m_numRows = m_sob->GetNumRows(); m_numCols = m_sob->GetNumCols(); m_sliceOffset = 0; }
@@ -1316,7 +1319,7 @@ public:
 	size_t GetNumElements() const { return m_numRows * m_numCols; }
 	//size_t GetSizeAllocated() const { return m_sob->GetSizeAllocated(); }
 	//size_t GetTotalBufferSize() const { return m_numRows*m_numCols*sizeof(ElemType); }
-	//size_t GetDiagSize() const { return m_numRows < m_numCols ? m_numRows : m_numCols; }
+	size_t GetDiagSize() const { return m_numRows < m_numCols ? m_numRows : m_numCols; }
 	//size_t NzCount() const;
 
 	bool IsDenseFormat() const { return m_sob->IsDenseFormat(); }
@@ -1330,13 +1333,15 @@ public:
 	bool OwnBuffer() const { return !m_sob->HasExternalBuffer(); }
 	bool IsSlice() const { return (m_numRows!=m_sob->GetNumRows() || m_numCols!=m_sob->GetNumCols() || m_sliceOffset!=0); }
 
-	ElemType* GetBuffer() const { return m_sob->GetBuffer(); }					// dense/sparse
-	ElemType* GetData() const { return m_sob->GetBuffer() + m_sliceOffset; }	// dense
+	ElemType* GetBuffer() const { return m_sob->GetBuffer(); }											// dense/sparse
+	ElemType* GetData() const { return m_sob->GetBuffer() + m_sliceOffset; }							// dense
+	ElemType* GetDataCol(size_t j) const { return m_sob->GetBuffer() + m_sliceOffset + j*m_numRows; }	// dense, col major
+	ElemType* GetDataRow(size_t j) const { return m_sob->GetBuffer() + m_sliceOffset + j*m_numCols; }	// dense, row major
 
 	ElemType GetItem(size_t row, size_t col) const { return m_sob->GetItem(row, col, m_sliceOffset); }
 	void PutItem(size_t row, size_t col, ElemType val) { m_sob->PutItem(row, col, val, m_sliceOffset); }
 
-	void TransposeTo(BaseMatrix<ElemType>& mat) { mat.m_sob->TransposeFrom(*m_sob.get()); mat.ResizeBack(); }
+	void TransposeTo(BaseMatrix<ElemType>& mat) const { mat.m_sob->TransposeFrom(*m_sob.get()); mat.ResizeBack(); }
 
 	void CopyToDense(BaseMatrix<ElemType>& mat) const;
 	void CopyToSparse(BaseMatrix<ElemType>& mat) const;
@@ -1413,11 +1418,11 @@ public:
 	//	if (m_numRows!=m_sob->GetNumRows() || m_numCols!=m_sob->GetNumCols())
 	//		LogicError("%s: Cannot write to the matrix because it is a slice.", function);
 	//}
-	//void VerifySize(size_t rows, size_t cols)
-	//{
-	//	if (rows!=m_numRows || cols!=m_numCols)
-	//		LogicError("VerifySize: expected matrix size %lu x %lu, but it is %lu x %lu", rows, cols, m_numRows, m_numCols);
-	//}
+	void VerifySize(size_t rows, size_t cols, const char* proc)
+	{
+		if (rows!=m_numRows || cols!=m_numCols)
+			LogicError("%s; The matrix is [%lu,%lu], but expected [%lu,%lu]", proc, rows, cols, m_numRows, m_numCols);
+	}
 };
 
 } } }

@@ -7,11 +7,12 @@
 #include "Platform.h"
 #include "ExceptionWithCallStack.h"
 #include "StringUtils.h"
-///#include <cmath>
-///#include <string>
-///#include <vector>
-///#include <assert.h>
-///#include <stdarg.h>
+//#include <cmath>
+//#include <string>
+//#include <vector>
+//#include <assert.h>
+//#include <stdarg.h>
+#include <limits.h>
 #ifdef _WIN32
 #include <windows.h>
 //#undef max
@@ -26,14 +27,16 @@
 #include <iostream>
 #include <iomanip>
 
+#define USE_TIME_BASED_SEED		ULONG_MAX
+
 ///#define TWO_PI			6.283185307f // TODO: find the official standards-confirming definition of this and use it instead
 
 ///#define EPSILON				1e-5
 ///#define ISCLOSE(a, b, threshold) (std::abs(a-b) < threshold ? true : false)
 ///#define DLCLOSE_SUCCESS		0
-///
-///#define UNUSED(x) (void)(x) // for variables that are, e.g., only used in _DEBUG builds
-///
+
+#define UNUSED(x) (void)(x) // for variables that are, e.g., only used in _DEBUG builds
+
 ///#pragma warning(disable : 4702) // disable some incorrect unreachable-code warnings
 ///
 ///#define DISABLE_COPY_AND_MOVE(TypeName)            \
@@ -148,7 +151,8 @@ static inline void Warning(const string& message)
 #endif
 
 // Computes the smallest multiple of k greater or equal to n
-///inline size_t SizeMultipleOf(size_t n, size_t k) { return n + (k - n % k) % k; }
+//inline size_t SizeMultipleOf(size_t n, size_t k) { return n + (k - n % k) % k; }
+inline size_t SizeMultipleOf(size_t n, size_t k) { return (n+k-1) & ~(k-1); }
 
 } } }
 

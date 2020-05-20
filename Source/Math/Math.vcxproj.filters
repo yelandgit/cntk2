@@ -27,6 +27,24 @@
     <ClInclude Include="BaseMatrix.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CPUMatrix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Helpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TensorOps.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CPURNGHandle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RNGHandle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GPURNGHandle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -35,8 +53,15 @@
     <ClCompile Include="BaseMatrix.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CPUMatrix.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RNGHandle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="prelink.bat" />
+    <None Include="GPURNGHandle.cu" />
   </ItemGroup>
 </Project>

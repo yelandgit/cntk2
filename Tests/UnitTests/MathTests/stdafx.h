@@ -21,10 +21,8 @@
 #pragma warning(disable:4996)
 
 #include <array>
-//#include <boost/test/unit_test.hpp>
-//#include "constants.h"
-//#include "fixtures.h"
-//#define HALF_IN_BOOST_TEST
+#include "constants.h"
+#include "fixtures.h"
 
 #include <iostream>
 #include <iomanip>

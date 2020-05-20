@@ -8,11 +8,11 @@
 
 #include "Basics.h"
 #include "Half.hpp"
-//#include <stdio.h>
-//#include <stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
 //#include <string.h> // include here because we redefine some names later
 //#include <errno.h>
-//#include <string>
+#include <string>
 //#include <vector>
 //#include <cmath> // for HUGE_VAL
 //#include <assert.h>
@@ -20,11 +20,10 @@
 //#include <map>
 //#include <stdexcept>
 //#include <locale> // std::wstring_convert
-//#include <string>
 //#include <algorithm> // for transform()
 //#include <unordered_map>
 //#include <chrono>
-//#include <thread>
+#include <thread>
 //#include <stack>
 //#include <mutex>
 //#include <memory>
