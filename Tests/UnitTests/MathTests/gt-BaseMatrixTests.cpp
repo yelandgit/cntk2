@@ -327,7 +327,7 @@ static void TestCopyTo(MatrixFormat mft)
 	m1.Assign(3, 4, array.data(), matrixFlagNone);
 	bool rmf = m1.IsRowMajor();
 
-	cout << "    matrix " << m1.Format() << endl;
+	cout << "\t\tmatrix " << m1.Format() << endl;
 
 	m1.CopyToDense(m2);
 	ASSERT_TRUE(m2.GetFormat()== (rmf ? matrixFormatDenseRow : matrixFormatDenseCol));
@@ -371,7 +371,7 @@ static void TestMakeFullBlock(MatrixFormat mft)
 	m1.Assign(3, 4, array.data(), matrixFlagNone);
 	size_t nref = (m1.IsRowMajor()) ? m1.GetNumRows() : m1.GetNumCols();
 
-	cout << "    matrix " << m1.Format() << endl;
+	cout << "\t\tmatrix " << m1.Format() << endl;
 
 	m1.CopyToFullBlock(m2);
 	ASSERT_EQ(m2.GetBlockCount(), nref);
@@ -398,7 +398,7 @@ static void TestGetPutSparseData(MatrixFormat mft)
 	BaseMatrix<float> m1(mft);
 	m1.Assign(3, 4, array.data());
 
-	cout << "    matrix " << m1.Format() << endl;
+	cout << "\t\tmatrix " << m1.Format() << endl;
 
 	// whole matrix
 	SparseData<float> v; m1.GetSparseData(v);
@@ -519,7 +519,7 @@ static void TestTransposeTo(MatrixFormat mft)
 	std::array<float, 12> array = { 0, 2, 0, 4, 5, 6, 0, 8, 9, 0, 0, 0 };
 	m1.Assign(3, 4, array.data(), matrixFlagNone);
 
-	cout << "    matrix " << m1.Format() << endl;
+	cout << "\t\tmatrix " << m1.Format() << endl;
 
 	BaseMatrix<float> m2; m1.TransposeTo(m2);
 	ASSERT_EQ(m2.GetNumRows(), m1.GetNumCols());
@@ -551,7 +551,7 @@ static void TestReshape(MatrixFormat mft)
 	std::array<float, 12> array = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 	m1.Init(mft); m1.Assign(3, 4, array.data(), matrixFlagNone);
 
-	cout << "    matrix " << m1.Format() << endl;
+	cout << "\t\tmatrix " << m1.Format() << endl;
 
 	size_t rows = 4;
 	size_t cols = 3;

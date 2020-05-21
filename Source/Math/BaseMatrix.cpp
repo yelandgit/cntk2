@@ -97,55 +97,18 @@ void BaseMatrix<ElemType>::SetColumnSlice(size_t start, size_t len)
 }
 
 template<class ElemType>
-void BaseMatrix<ElemType>::GetSparseData(SparseData<ElemType>& v) const
+void BaseMatrix<ElemType>::GetSparseData(SparseData<ElemType>& spd) const
 {
-	v.clear(); if (IsEmpty()) return;
+	if (IsEmpty()) { spd.Init(GetFormat()); return; }
 	size_t nc = (m_sob->IsRowMajor()) ? m_numRows : m_numCols;
-	m_sob->GetSparseData(v, m_sliceOffset, nc);
+	m_sob->GetSparseData(spd, m_sliceOffset, nc);
 }
 
 template<class ElemType>
-void BaseMatrix<ElemType>::PutSparseData(const SparseData<ElemType>& v)
+void BaseMatrix<ElemType>::PutSparseData(const SparseData<ElemType>& spd)
 {
-	if (!IsEmpty()) m_sob->PutSparseData(v);
+	m_sob->PutSparseData(spd);
 }
-
-//template<class ElemType>
-//size_t BaseMatrix<ElemType>::NzCount() const
-//{
-//	size_t n = m_numRows*m_numCols; if (n==0) return 0;
-//
-//	// dense
-//	MatrixFormat mft = m_sob->GetFormat();
-//	if ((mft & matrixFormatSparse)==0) return n;
-//
-//	size_t nc = (mft & matrixFormatRowMajor) ? m_numRows : m_numCols;
-//	size_t nr = (mft & matrixFormatRowMajor) ? m_numCols : m_numRows;
-//	if ((mft & matrixFormatBlock)==0)
-//	{
-//		// sparse
-//		const index_t* primePos = m_sob->GetCompPos() + m_sliceOffset;
-//		return primePos[nc] - primePos[0];
-//	}
-//	const size_t* blockPos = m_sob->GetBlockPos();
-//	if (blockPos)
-//	{
-//		// block (new)
-//		size_t n = 0; blockPos += m_sliceOffset;
-//		for (size_t j=0; j<nc; ++j) if (blockPos[j]!=string::npos) ++n;
-//		return n*nr;
-//	}
-//	const size_t* blockId = m_sob->GetBlockId();
-//	if (blockId)
-//	{
-//		// block (old)
-//		size_t n = 0, nblk = m_sob->GetBlockCount();
-//		size_t ns = m_sliceOffset, ne = m_sliceOffset + nc;
-//		for (size_t j=0; j<nblk; ++j) if (j>=ns && j<ne) ++n;
-//		return n*nr;
-//	}
-//	return 0;
-//}
 
 template<class ElemType>
 void BaseMatrix<ElemType>::CopyToDense(BaseMatrix<ElemType>& mat) const

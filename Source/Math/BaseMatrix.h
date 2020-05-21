@@ -303,22 +303,37 @@ struct ElemItem
 template <class ElemType>
 class SparseData : public vector<ElemItem<ElemType>>
 {
+	typedef vector<ElemItem<ElemType>> Base;
+	int		format;
+	bool	sorted;
+
 public:
+	SparseData(int fmt=0) : format(fmt), sorted(false) {}
+
+	int  GetFormat() const { return format; }
+	bool IsSorted() const { return sorted; }
+	bool IsRowMajor() const { return (format & matrixFormatRowMajor)!=0; }
+	bool IsColMajor() const { return (format & matrixFormatRowMajor)==0; }
+
+	void Init(int fmt) { format = fmt; sorted = false; clear(); }
+	void push_back(const ElemItem<ElemType>& val) { Base::push_back(val); sorted = false; }
+	void SetSorted() { sorted = true; }
+
 	void SortByRows()
 	{
-		if (size()>1) std::sort(begin(), end(),
-							[](const ElemItem<ElemType>& a, const ElemItem<ElemType>& b)
-							{
-								return (a.row==b.row) ? (a.col<b.col) : (a.row<b.row);
-							});
+		if (sorted && IsRowMajor()) return;
+		if (size()>1) std::sort(begin(), end(), [](const ElemItem<ElemType>& a, const ElemItem<ElemType>& b)
+													{ return (a.row==b.row) ? (a.col<b.col) : (a.row<b.row); });
+		format |= matrixFormatRowMajor;
+		sorted = true;
 	}
 	void SortByCols()
 	{
-		if (size()>1) std::sort(begin(), end(),
-							[](const ElemItem<ElemType>& a, const ElemItem<ElemType>& b)
-							{
-								return (a.col==b.col) ? (a.row<b.row) : (a.col<b.col);
-							});
+		if (sorted && IsColMajor()) return;
+		if (size()>1) std::sort(begin(), end(), [](const ElemItem<ElemType>& a, const ElemItem<ElemType>& b)
+													{ return (a.col==b.col) ? (a.row<b.row) : (a.col<b.col); });
+		format &= ~matrixFormatRowMajor;
+		sorted = true;
 	}
 	void ViewIndex(ostream& os, int limit=16) const
 	{
@@ -428,7 +443,7 @@ public:
 	void PutItem(size_t row, size_t col, ElemType val, size_t offset=0);
 
 	void GetSparseData(SparseData<ElemType>& v, size_t offset=0, size_t len=0) const;
-	void PutSparseData(const SparseData<ElemType>& v);
+	void PutSparseData(const SparseData<ElemType>& spd);
 
 	void SetZeros();
 	bool Reshape(size_t rows, size_t cols);
@@ -1159,66 +1174,67 @@ void BaseMatrixStorage<ElemType>::PutItem(size_t row, size_t col, ElemType val, 
 }
 
 template <class ElemType>
-void BaseMatrixStorage<ElemType>::GetSparseData(SparseData<ElemType>& v, size_t offset, size_t len) const
+void BaseMatrixStorage<ElemType>::GetSparseData(SparseData<ElemType>& spd, size_t offset, size_t len) const
 {
 	bool rmf = IsRowMajor();
 	size_t nc = (rmf) ? m_numRows : m_numCols;
 	size_t nr = (rmf) ? m_numCols : m_numRows;
 	if (len>0) nc = len;
 
+	spd.Init(m_format);
 	if (IsDenseFormat())
 	{
 		ElemType* p = m_pBuffer + offset;
-		size_t n = (nc*nr)/2; v.reserve(n<16 ? 16:n);
+		size_t n = (nc*nr)/2; spd.reserve(n<16 ? 16:n);
 		for (size_t j=0; j<nc; ++j)
-			if (rmf) for (size_t i=0; i<nr; ++i) { if (*p++) v.push_back(ElemItem<ElemType>(j,i,p[-1])); }
-			else for (size_t i=0; i<nr; ++i) { if (*p++) v.push_back(ElemItem<ElemType>(i,j,p[-1])); }
+			if (rmf) for (size_t i=0; i<nr; ++i) { if (*p++) spd.push_back(ElemItem<ElemType>(j,i,p[-1])); }
+			else for (size_t i=0; i<nr; ++i) { if (*p++) spd.push_back(ElemItem<ElemType>(i,j,p[-1])); }
 	}
 	else if (IsSparseFormat())
 	{
 		index_t* compPos = m_compPos + offset;
 		size_t n = compPos[nc] - compPos[0]; if (n==0) return;
-		v.reserve(n);
+		spd.reserve(n);
 		for (size_t j=0; j<nc; ++j)
 		{
 			size_t ns = compPos[j], ne = compPos[j+1]; if (ns==ne) continue;
-			if (rmf) for (size_t k=ns; k<ne; ++k) v.push_back(ElemItem<ElemType>(j,m_compId[k],m_pBuffer[k]));
-			else for (size_t k=ns; k<ne; ++k) v.push_back(ElemItem<ElemType>(m_compId[k],j,m_pBuffer[k]));
+			if (rmf) for (size_t k=ns; k<ne; ++k) spd.push_back(ElemItem<ElemType>(j,m_compId[k],m_pBuffer[k]));
+			else for (size_t k=ns; k<ne; ++k) spd.push_back(ElemItem<ElemType>(m_compId[k],j,m_pBuffer[k]));
 		}
 	}
 	else
 	{
 		if (m_blockCnt==0) return;
-		v.reserve(m_blockCnt*nr);
+		spd.reserve(m_blockCnt*nr);
 		index_t* blockPos = m_compPos + offset;
 		for (size_t j=0; j<nc; ++j)
 		{
 			size_t k = blockPos[j]; if (k==string::npos) continue;
 			ElemType* p = m_pBuffer + k*nr;
-			if (rmf) for (size_t i=0; i<nr; ++i) { if (*p++) v.push_back(ElemItem<ElemType>(j,i,p[-1])); }
-			else for (size_t i=0; i<nr; ++i) { if (*p++) v.push_back(ElemItem<ElemType>(i,j,p[-1])); }
+			if (rmf) for (size_t i=0; i<nr; ++i) { if (*p++) spd.push_back(ElemItem<ElemType>(j,i,p[-1])); }
+			else for (size_t i=0; i<nr; ++i) { if (*p++) spd.push_back(ElemItem<ElemType>(i,j,p[-1])); }
 		}
 	}
+	spd.SetSorted();
 }
 
 template <class ElemType>
-void BaseMatrixStorage<ElemType>::PutSparseData(const SparseData<ElemType>& v)
+void BaseMatrixStorage<ElemType>::PutSparseData(const SparseData<ElemType>& spd)
 {
-	Reset();
-	if (v.empty() || IsEmpty()) return;
+	Reset(); if (spd.empty()) return;
 
 	bool rmf = IsRowMajor();
 	size_t nc = (rmf) ? m_numRows : m_numCols;
 	size_t nr = (rmf) ? m_numCols : m_numRows;
 	if (IsDenseFormat())
 	{
-		if (rmf) for (SparseData<ElemType>::const_iterator i=v.begin(); i!=v.end(); ++i)
+		if (rmf) for (SparseData<ElemType>::const_iterator i=spd.begin(); i!=spd.end(); ++i)
 		{
 			if (size_t((*i).row)>m_numRows || size_t((*i).col)>m_numCols)
 				RuntimeError("PutSparseData; Item [%d,%d] is out of range (%lu,%lu)", (*i).row, (*i).col, m_numRows, m_numCols);
 			m_pBuffer[(*i).row*m_numCols + (*i).col] = (*i).value;
 		}
-		else for (SparseData<ElemType>::const_iterator i=v.begin(); i!=v.end(); ++i)
+		else for (SparseData<ElemType>::const_iterator i=spd.begin(); i!=spd.end(); ++i)
 		{
 			if (size_t((*i).row)>m_numRows || size_t((*i).col)>m_numCols)
 				RuntimeError("PutSparseData; Item [%d,%d] is out of range (%lu,%lu)", (*i).row, (*i).col, m_numRows, m_numCols);
@@ -1228,8 +1244,8 @@ void BaseMatrixStorage<ElemType>::PutSparseData(const SparseData<ElemType>& v)
 	else if (IsSparseFormat())
 	{
 		index_t n = 0, k = -1;
-		if (v.size()>m_buffSize) Allocate(v.size());
-		if (rmf) for (SparseData<ElemType>::const_iterator i=v.begin(); i!=v.end(); ++i)
+		if (spd.size()>m_buffSize) Allocate(spd.size());
+		if (rmf) for (SparseData<ElemType>::const_iterator i=spd.begin(); i!=spd.end(); ++i)
 		{
 			if (size_t((*i).row)>m_numRows || size_t((*i).col)>m_numCols)
 				RuntimeError("PutSparseData; Item [%d,%d] is out of range (%lu,%lu)", (*i).row, (*i).col, m_numRows, m_numCols);
@@ -1238,7 +1254,7 @@ void BaseMatrixStorage<ElemType>::PutSparseData(const SparseData<ElemType>& v)
 			m_pBuffer[n] = (*i).value;
 			m_compId[n++] = (*i).col;
 		}
-		else for (SparseData<ElemType>::const_iterator i=v.begin(); i!=v.end(); ++i)
+		else for (SparseData<ElemType>::const_iterator i=spd.begin(); i!=spd.end(); ++i)
 		{
 			if (size_t((*i).row)>m_numRows || size_t((*i).col)>m_numCols)
 				RuntimeError("PutSparseData; Item [%d,%d] is out of range (%lu,%lu)", (*i).row, (*i).col, m_numRows, m_numCols);
@@ -1252,7 +1268,7 @@ void BaseMatrixStorage<ElemType>::PutSparseData(const SparseData<ElemType>& v)
 	else
 	{
 		size_t m = nc/4; m = (m==0) ? nr : m*nr;
-		if (rmf) for (SparseData<ElemType>::const_iterator i=v.begin(); i!=v.end(); ++i)
+		if (rmf) for (SparseData<ElemType>::const_iterator i=spd.begin(); i!=spd.end(); ++i)
 		{
 			if (size_t((*i).row)>m_numRows || size_t((*i).col)>m_numCols)
 				RuntimeError("PutSparseData; Item [%d,%d] is out of range (%lu,%lu)", (*i).row, (*i).col, m_numRows, m_numCols);
@@ -1265,7 +1281,7 @@ void BaseMatrixStorage<ElemType>::PutSparseData(const SparseData<ElemType>& v)
 			}
 			m_pBuffer[k*nr + (*i).col] = (*i).value;
 		}
-		else for (SparseData<ElemType>::const_iterator i=v.begin(); i!=v.end(); ++i)
+		else for (SparseData<ElemType>::const_iterator i=spd.begin(); i!=spd.end(); ++i)
 		{
 			if (size_t((*i).row)>m_numRows || size_t((*i).col)>m_numCols)
 				RuntimeError("PutSparseData; Item [%d,%d] is out of range (%lu,%lu)", (*i).row, (*i).col, m_numRows, m_numCols);
@@ -1491,10 +1507,7 @@ public:
 	size_t GetNumStorageRows() const { return m_sob->GetNumRows(); }
 	size_t GetNumStorageCols() const { return m_sob->GetNumCols(); }
 	size_t GetNumElements() const { return m_numRows * m_numCols; }
-	//size_t GetSizeAllocated() const { return m_sob->GetSizeAllocated(); }
-	//size_t GetTotalBufferSize() const { return m_numRows*m_numCols*sizeof(ElemType); }
 	size_t GetDiagSize() const { return m_numRows < m_numCols ? m_numRows : m_numCols; }
-	//size_t NzCount() const;
 
 	bool IsDenseFormat() const { return m_sob->IsDenseFormat(); }
 	bool IsSparseFormat() const { return m_sob->IsSparseFormat(); }
@@ -1515,8 +1528,8 @@ public:
 	ElemType GetItem(size_t row, size_t col) const { return m_sob->GetItem(row, col, m_sliceOffset); }
 	void PutItem(size_t row, size_t col, ElemType val) { m_sob->PutItem(row, col, val, m_sliceOffset); }
 
-	void GetSparseData(SparseData<ElemType>& v) const;
-	void PutSparseData(const SparseData<ElemType>& v);
+	void GetSparseData(SparseData<ElemType>& spd) const;
+	void PutSparseData(const SparseData<ElemType>& spd);
 
 	void TransposeTo(BaseMatrix<ElemType>& mat) const { mat.m_sob->TransposeFrom(*m_sob.get()); mat.ResizeBack(); }
 
