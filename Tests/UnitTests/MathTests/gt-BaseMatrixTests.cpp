@@ -506,16 +506,11 @@ static void Random(SparseData<float>& v, size_t rows, size_t cols, size_t n=0)
 	}
 }
 
-static void CheckTransposeTo(MatrixFormat mft)
+static void Random(BaseMatrix<float>& m, size_t n=0)
 {
-	BaseMatrix<float> m(mft); m.Resize(100,10000);
-	SparseData<float> spd; Random(spd, m.GetNumRows(), m.GetNumCols(), 100000);
-	//v.ViewIndex(cout,1);
-
-	DWORD t1 = GetTickCount();
+	SparseData<float> spd;
+	Random(spd, m.GetNumRows(), m.GetNumCols(), n);
 	m.PutSparseData(spd);
-	DWORD t2 = GetTickCount();
-	cout << "  done in " << (t2-t1) << " ms" << endl;
 }
 
 static void TestTransposeTo(MatrixFormat mft)
@@ -532,13 +527,16 @@ static void TestTransposeTo(MatrixFormat mft)
 	for (size_t j=0; j<m1.GetNumCols(); ++j)
 	for (size_t i=0; i<m1.GetNumRows(); ++i)
 		ASSERT_EQ(m1.GetItem(i,j), m2.GetItem(j,i));
+
+	BaseMatrix<float> m3;
+	m1.Resize(100,1000); Random(m1,5000);
+	m1.TransposeTo(m2);
+	m2.TransposeTo(m3);
+	ASSERT_TRUE(m3.IsEqualTo(m1));
 }
 
 TEST_F(BaseMatrixTest, TransposeTo)
 {
-	//CheckTransposeTo(matrixFormatDenseCol);
-	//CheckTransposeTo(matrixFormatSparseBSR);
-
 	TestTransposeTo(matrixFormatDenseCol);
 	TestTransposeTo(matrixFormatDenseRow);
 	TestTransposeTo(matrixFormatSparseCSC);

@@ -433,7 +433,7 @@ public:
 	void SetZeros();
 	bool Reshape(size_t rows, size_t cols);
 	void Transpose() { size_t n = m_numRows; m_numRows = m_numCols; m_numCols = n; m_format = MatrixFormat(m_format ^ matrixFormatRowMajor); }
-	void TransposeFrom(const BaseMatrixStorage<ElemType>& bms, bool hdr=false);
+	void TransposeFrom(const BaseMatrixStorage<ElemType>& bms);
 
 	int  Compare(const BaseMatrixStorage<ElemType>& bms) const;
 
@@ -978,48 +978,54 @@ void BaseMatrixStorage<ElemType>::GetBlockId(vector<size_t>& v) const
 }
 
 template<class ElemType>
-void BaseMatrixStorage<ElemType>::TransposeFrom(const BaseMatrixStorage<ElemType>& bms, bool hdr)
+void BaseMatrixStorage<ElemType>::TransposeFrom(const BaseMatrixStorage<ElemType>& bms)
 {
-	Init(bms.m_format);
-	Create(bms.m_numCols, bms.m_numRows);
-	if (!IsEmpty())
+	if (bms.IsDenseFormat())
 	{
+		Init(bms.m_format);
+		Create(bms.m_numCols, bms.m_numRows); if (IsEmpty()) return;
+
 		bool rmf = IsRowMajor();
 		size_t nc = (m_format & matrixFormatRowMajor) ? bms.m_numRows : bms.m_numCols;
 		size_t nr = (m_format & matrixFormatRowMajor) ? bms.m_numCols : bms.m_numRows;
 
-		if (IsDenseFormat())
+		const ElemType* src = bms.m_pBuffer;
+		for (size_t j=0; j<nc; ++j)
 		{
-			const ElemType* src = bms.m_pBuffer;
-			for (size_t j=0; j<nc; ++j)
-			{
-				ElemType* po = m_pBuffer + j;
-				for (size_t i=0; i<nr; ++i) { *po = *src++; po += nc; }
-			}
-		}
-		else if (IsSparseFormat() && bms.m_compPos[nc]>0)
-		{
-			Allocate(bms.m_compPos[nc]);
-			for (size_t j=0; j<nc; ++j)
-			{
-				size_t ns = bms.m_compPos[j], ne = bms.m_compPos[j+1];
-				if (rmf) for (size_t i=ns; i<ne; ++i) PutItem(bms.m_compId[i], j, bms.m_pBuffer[i]);
-				else for (size_t i=ns; i<ne; ++i) PutItem(j, bms.m_compId[i], bms.m_pBuffer[i]);
-			}
-		}
-		else if (IsBlockFormat() && bms.m_blockCnt>0)
-		{
-			Allocate(bms.m_blockCnt*nr);
-			for (size_t j=0; j<nc; ++j)
-			{
-				size_t k = bms.m_compPos[j]; if (k==string::npos) continue;
-				const ElemType* p = bms.m_pBuffer + k*nr;
-				if (rmf) for (size_t i=0; i<nr; ++i) { if (*p++) PutItem(i,j,p[-1]); }
-				else for (size_t i=0; i<nr; ++i) { if (*p++) PutItem(j,i,p[-1]); }
-			}
+			ElemType* po = m_pBuffer + j;
+			for (size_t i=0; i<nr; ++i) { *po = *src++; po += nc; }
 		}
 	}
-	if (hdr) Transpose();
+	else if (bms.IsSparseFormat())
+	{
+		Init(MatrixFormat(bms.m_format ^ matrixFormatRowMajor));
+		Create(bms.m_numRows, bms.m_numCols);
+		if (!IsEmpty())
+		{
+			SparseData<ElemType> spd; bms.GetSparseData(spd);
+			if (IsRowMajor()) spd.SortByRows(); else spd.SortByCols();
+			PutSparseData(spd);
+		}
+		Transpose();
+	}
+	else
+	{
+		Init(bms.m_format);
+		Create(bms.m_numCols, bms.m_numRows); if (IsEmpty()) return;
+
+		bool rmf = IsRowMajor();
+		size_t nc = (m_format & matrixFormatRowMajor) ? bms.m_numRows : bms.m_numCols;
+		size_t nr = (m_format & matrixFormatRowMajor) ? bms.m_numCols : bms.m_numRows;
+
+		Allocate(bms.m_blockCnt*nr);
+		for (size_t j=0; j<nc; ++j)
+		{
+			size_t k = bms.m_compPos[j]; if (k==string::npos) continue;
+			const ElemType* p = bms.m_pBuffer + k*nr;
+			if (rmf) for (size_t i=0; i<nr; ++i) { if (*p++) PutItem(i,j,p[-1]); }
+			else for (size_t i=0; i<nr; ++i) { if (*p++) PutItem(j,i,p[-1]); }
+		}
+	}
 }
 
 template<class ElemType>

@@ -195,14 +195,16 @@ template<class ElemType>
 bool BaseMatrix<ElemType>::IsEqualTo(const BaseMatrix<ElemType>& m, ElemType thresh) const
 {
 	if (m.m_numRows!=m_numRows || m.m_numCols!=m_numCols) return false;
+
+	size_t n = 0;
 	for (size_t j=0; j<m_numCols; ++j)
 	for (size_t i=0; i<m_numRows; ++i)
-		if (abs(GetItem(i,j)-m.GetItem(i,j)) > thresh)
-		{
-			float x = float(GetItem(i,j)), y = float(m.GetItem(i,j));
-			cout << "*** (" << i << "," << j << ") " << x << " / " << y << "  d=" << abs(x-y) << endl;
-			return false;
-		}
+	{
+		if (abs(GetItem(i,j)-m.GetItem(i,j)) <= thresh) continue;
+		float x = float(GetItem(i,j)), y = float(m.GetItem(i,j));
+		cout << "*** different item [" << i << "," << j << "] " << x << " / " << y << "  d=" << abs(x-y) << endl;
+		if (++n==10) return false;
+	}
 	return true;
 }
 
