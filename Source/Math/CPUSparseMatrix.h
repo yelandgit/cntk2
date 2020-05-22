@@ -36,7 +36,7 @@ public:
 
 public:
 	void SetValue(const CPUSparseMatrix<ElemType>& mat);
-	//void SetValue(size_t rows, size_t cols, ElemType* p, int flags = matrixFlagNone);
+	void SetValue(size_t rows, size_t cols, ElemType* p, int flags=matrixFlagNone);
 
 	void SetDiagonalValue(ElemType v);
 	void SetDiagonalValue(const CPUMatrix<ElemType>& v);

@@ -45,7 +45,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 inline bool IsCpu(device_t dev) { return dev < 0; }
 inline bool IsGpu(device_t dev) { return dev >= 0; }
 
-inline size_t buffsize(size_t n, size_t m=2) { return (n + (m-1)) & ~(m-1); }
+inline size_t getbuffsize(size_t n, size_t m=2) { return (n + (m-1)) & ~(m-1); }
 
 //==============================================================================
 //		TracingGPUMemoryAllocator
@@ -297,7 +297,8 @@ struct ElemItem
 	ElemItem(size_t r, ElemType v) : row((index_t)r), col(0), value(v) {}
 	ElemItem(size_t r, size_t c, ElemType v) : row((index_t)r), col((index_t)c), value(v) {}
 
-	bool operator < (const ElemItem& it) const { return row < it.row; }
+	bool operator < (const ElemItem& item) const { return row < item.row; }
+	bool operator == (const ElemItem& item) const { return row==item.row && col==item.col && value==item.value; }
 };
 
 template <class ElemType>
@@ -344,6 +345,11 @@ public:
 			if (++n==limit) { os << endl; n = 0; }
 		}
 		if (n) os << endl;
+	}
+	void View(ostream& os) const
+	{
+		for (const_iterator i=begin(); i!=end(); ++i)
+			os << "\t" << (*i).row << "\t" << (*i).col << "\t" << float((*i).value) << endl;
 	}
 };
 
@@ -445,7 +451,6 @@ public:
 	void GetSparseData(SparseData<ElemType>& v, size_t offset=0, size_t len=0) const;
 	void PutSparseData(const SparseData<ElemType>& spd);
 
-	void SetZeros();
 	bool Reshape(size_t rows, size_t cols);
 	void TransposeFrom(const BaseMatrixStorage<ElemType>& bms, bool hdr=false);
 	void TransposeHeader() { size_t n = m_numRows; m_numRows = m_numCols; m_numCols = n; m_format = MatrixFormat(m_format ^ matrixFormatRowMajor); }
@@ -489,7 +494,7 @@ public:
 //#endif
 //	}
 	// view
-	string Format() const;
+	string FormatStr() const;
 	string GetInfo(bool all=true) const;
 	void ViewBuffer(ostream& os, const char* fmt = "%8.4f", size_t offset=0, size_t len=0) const;
 	void ViewIds(ostream& os) const;
@@ -497,6 +502,7 @@ public:
 protected:
 	void ZeroInit(MatrixFormat mft, device_t dev);
 	void GetBlockId(vector<size_t>& v) const;
+	void Transpose(size_t rows, size_t cols, const ElemType* p, int flags);
 
 	void ViewDense(ostream& os, const char* fmt, size_t offset, size_t len) const;
 	void ViewSparse(ostream& os, const char* fmt, size_t offset, size_t len) const;
@@ -558,7 +564,7 @@ void BaseMatrixStorage<ElemType>::Release(bool all)
 template<class ElemType>
 void BaseMatrixStorage<ElemType>::Allocate(size_t n)
 {
-	size_t k = buffsize(n);
+	size_t k = getbuffsize(n);
 	if (k>m_buffSize)
 	{
 		ElemType* pbuff = m_pBuffer; m_pBuffer = new ElemType[k];
@@ -615,8 +621,8 @@ size_t BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols)
 	m_numRows = rows; m_numCols = cols;
 	if (IsDenseFormat())
 	{
-		if (m_extBuffer) { m_pBuffer = nullptr; m_extBuffer = false; }
-		if (n>0) Allocate(n);
+		if (m_extBuffer) { m_pBuffer = nullptr; m_extBuffer = false; m_buffSize = 0; }
+		if (n>m_buffSize) Allocate(n);
 	}
 	else if (IsSparseFormat())
 	{
@@ -638,7 +644,11 @@ size_t BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols)
 template<class ElemType>
 void BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols, ElemType* p, int flags)
 {
-	m_format = MatrixFormat(m_format | (flags & matrixFormatRowMajor));
+	size_t n = Create(rows, cols); if (n==0) return;
+	int k = (m_format & matrixFormatRowMajor ? 1:0) + (flags & matrixFormatRowMajor ? 1:0);
+	if (k==1) { Transpose(rows,cols,p,flags); return; }
+
+	//m_format = MatrixFormat(m_format | (flags & matrixFormatRowMajor));
 	if (IsDenseFormat())
 	{
 		if (flags & matrixFlagExternalBuffer)
@@ -647,20 +657,90 @@ void BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols, ElemType* p, 
 			m_pBuffer = p; m_extBuffer = true;
 			m_buffSize = rows * cols;
 		}
-		else { size_t n = Create(rows, cols); if (n) memcpy(m_pBuffer, p, n*sizeof(ElemType)); }
+		else if (n) memcpy(m_pBuffer, p, n*sizeof(ElemType));
 		return;
 	}
-	Create(rows, cols); if (IsEmpty()) return;
-
 	bool rmf = IsRowMajor();
 	size_t nc = (rmf) ? rows : cols;
 	size_t nr = (rmf) ? cols : rows;
-	size_t n = size_t(0.3*nc + 0.5);;
-	Allocate(n==0 ? nr : n*nr);
+	size_t m = size_t(0.2*nc + 0.5);
+	Allocate(m = (m==0) ? nr : m*nr);
 
-	for (size_t j=0; j<nc; ++j)
-		if (rmf) for (size_t i=0; i<nr; ++i) { if (*p++!=0) PutItem(j,i,p[-1]); }
-		else for (size_t i=0; i<nr; ++i) if (*p++!=0) PutItem(i,j,p[-1]);
+	if (IsSparseFormat())
+	{
+		for (size_t j=0,n=0; j<nc; ++j)
+		{
+			for (size_t i=0; i<nr; ++i)
+			{
+				if (*p++==0) continue;
+				if (n==m_buffSize) Allocate(m_buffSize+m);
+				m_pBuffer[n] = p[-1]; m_compId[n++] = (index_t)i;
+			}
+			m_compPos[j+1] = (index_t)n;
+		}
+	}
+	else
+	{
+		for (size_t j=0; j<nc; ++j)
+			if (rmf) for (size_t i=0; i<nr; ++i) { if (*p++!=0) PutItem(j,i,p[-1]); }
+			else for (size_t i=0; i<nr; ++i) if (*p++!=0) PutItem(i,j,p[-1]);
+	}
+}
+
+template<class ElemType>
+void BaseMatrixStorage<ElemType>::Transpose(size_t rows, size_t cols, const ElemType* p, int flags)
+{
+	bool rmf = (flags & matrixFormatRowMajor)!=0;
+	size_t nc = (rmf) ? cols : rows;
+	size_t nr = (rmf) ? rows : cols;
+
+	if (IsDenseFormat())
+	{
+		ElemType* po = m_pBuffer;
+		for (size_t i=0; i<nc; ++i)
+		{
+			const ElemType* pi = p + i;
+			for (size_t j=0; j<nr; ++j) { *po++ = *pi; pi += nc; }
+		}
+		return;
+	}
+	size_t m = size_t(0.2*nc + 0.5);
+	Allocate(m = (m==0) ? nr : m*nr);
+
+	if (IsSparseFormat())
+	{
+		for (size_t j=0,n=0; j<nc; ++j)
+		{
+			const ElemType* pj = p + j;
+			for (size_t i=0; i<nr; ++i,pj+=nc)
+			{
+				if (*pj==0) continue;
+				if (n==m_buffSize) Allocate(m_buffSize+m);
+				m_pBuffer[n] = *pj; m_compId[n++] = (index_t)i;
+			}
+			m_compPos[j+1] = (index_t)n;
+		}
+	}
+	else
+	{
+		for (size_t j=0; j<nc; ++j)
+		{
+			size_t k = m_compPos[j];
+			ElemType* po = (k==string::npos) ? nullptr : m_pBuffer + k*nr;
+			const ElemType* pj = p + j;
+			for (size_t i=0; i<nr; ++i,pj+=nc)
+			{
+				if (*pj==0) continue;
+				if (po==nullptr)
+				{
+					size_t k = m_blockCnt*nr;
+					if (k+nr > m_buffSize) Allocate(k + m);
+					po = m_pBuffer + k; m_compPos[j] = (index_t)m_blockCnt++;
+				}
+				po[i] = *pj;
+			}
+		}
+	}
 }
 
 template<class ElemType>
@@ -1264,7 +1344,7 @@ void BaseMatrixStorage<ElemType>::PutSparseData(const SparseData<ElemType>& spd)
 			m_pBuffer[n] = (*i).value;
 			m_compId[n++] = (*i).row;
 		}
-		m_compPos[nc] = n;
+		while (k<nc) m_compPos[++k] = n;
 	}
 	else
 	{
@@ -1298,23 +1378,15 @@ void BaseMatrixStorage<ElemType>::PutSparseData(const SparseData<ElemType>& spd)
 	}
 }
 
-template <class ElemType>
-void BaseMatrixStorage<ElemType>::SetZeros()
-{
-	size_t n = m_numRows * m_numCols; if (n==0 || m_buffSize==0) return;
-	memset(m_pBuffer, 0, (n<m_buffSize ? n:m_buffSize)*sizeof(ElemType));
-}
-
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 //			view
 // ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 template<class ElemType>
-string BaseMatrixStorage<ElemType>::Format() const
+string BaseMatrixStorage<ElemType>::FormatStr() const
 {
-	if (m_format & matrixFormatSparse)
-		return string("Sparse") + (m_format & matrixFormatBlock ? "BS":"CS") + (m_format & matrixFormatRowMajor ? "R":"C");
-	return string("Dense") + (m_format & matrixFormatRowMajor ? "Row":"Col");
+	if (IsDenseFormat()) return string("Dense") + (IsRowMajor() ? "Row":"Col");
+	return string("Sparse") + (IsBlockFormat() ? "BS":"CS") + (IsRowMajor() ? "R":"C");
 }
 
 template <class ElemType>
@@ -1490,7 +1562,7 @@ public:
 	void Release() { m_numRows = m_numCols = m_sliceOffset = 0; m_sob = nullptr; }
 	void Allocate(size_t n) { m_sob->Allocate(n); }
 	void Init(MatrixFormat mft, device_t dev=CPUDEVICE);
-	void Init() { m_sob->SetZeros(); }
+	//void Init() { m_sob->SetZeros(); }
 	void Reset() { m_sob->Reset(); ResizeBack(); }
 
 	void Assign(size_t rows, size_t cols, ElemType* p, int flags=matrixFlagNone);
@@ -1499,7 +1571,7 @@ public:
 	void ResizeBack() { m_numRows = m_sob->GetNumRows(); m_numCols = m_sob->GetNumCols(); m_sliceOffset = 0; }
 	void Reshape(size_t rows, size_t cols);
 
-	string Format() const { return m_sob->Format(); }
+	string FormatStr() const { return m_sob->FormatStr(); }
 	MatrixFormat GetFormat() const { return m_sob->GetFormat(); }
 	device_t GetDeviceId() const { return m_sob->GetDeviceId(); }
 

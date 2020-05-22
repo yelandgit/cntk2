@@ -307,7 +307,7 @@ CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignRepeatOf(const CPUMatrix<ElemTyp
 	if (a.IsEmpty())
 		LogicError("AssignRepeatOf; Matrix a is empty");
 
-	Resize(a.GetNumRows() * numRowRepeats, a.GetNumCols() * numColRepeats);
+	Resize(a.GetNumRows()*numRowRepeats, a.GetNumCols()*numColRepeats);
 	long n = (long) a.GetNumCols(), m = (long) a.GetNumRows();
 	long m4 = m & ~3;
 	auto& us = *this;
@@ -935,8 +935,8 @@ ElemType CPUMatrix<ElemType>::Adagrad(CPUMatrix<ElemType>& gradients, bool needA
 
 	if (IsEmpty() || gradients.GetNumCols() != GetNumCols() || gradients.GetNumRows() != GetNumRows())
 	{
+		Reset();
 		Resize(gradients.GetNumRows(), gradients.GetNumCols());
-		SetValue((ElemType)0);
 	}
 	if (GetNumRows() != gradients.GetNumRows() || GetNumCols() != gradients.GetNumCols())
 		LogicError("The matrix gradients must have the same rows and columns as this matrix");
@@ -994,8 +994,8 @@ void CPUMatrix<ElemType>::FSAdagrad(CPUMatrix<ElemType>& gradients,
 
 	if (IsEmpty() || (GetNumCols() < numColsNeeded))
 	{
+		Reset();
 		Resize(gradients.GetNumRows(), numColsNeeded);
-		SetValue((ElemType)0);
 	}
 	if (GetNumRows() != gradients.GetNumRows() || GetNumCols() != numColsNeeded)
 		LogicError("The matrix gradients does not have expected dimensions");
@@ -1037,8 +1037,8 @@ void CPUMatrix<ElemType>::Adam(CPUMatrix<ElemType>& gradients, CPUMatrix<ElemTyp
 	size_t numColsNeeded = 2 * gradients.GetNumCols();
 	if (IsEmpty() || (GetNumCols() < numColsNeeded))
 	{
+		Reset();
 		Resize(gradients.GetNumRows(), numColsNeeded);
-		SetValue((ElemType)0);
 	}
 	if (GetNumRows() != gradients.GetNumRows() || GetNumCols() != numColsNeeded)
 		LogicError("The matrix gradients does not have expected dimensions");
@@ -1088,8 +1088,8 @@ ElemType CPUMatrix<ElemType>::RmsProp(CPUMatrix<ElemType>& gradients,
 
 	if (IsEmpty() || GetNumCols() < gradients.GetNumCols() * 3 || !initialized)
 	{
+		Reset();
 		Resize(gradients.GetNumRows(), gradients.GetNumCols() * 3);
-		SetValue((ElemType)0);
 
 		ElemType* avars = GetData();         // accumulated variances for RMS scaling
 		ElemType* steps = GetData() + 2 * n; // current step size
@@ -1169,8 +1169,8 @@ void CPUMatrix<ElemType>::AdaDelta(CPUMatrix<GradType>& gradients, CPUMatrix<Ele
 
 	if (IsEmpty() || (GetNumCols() < numColsNeeded))
 	{
+		Reset();
 		Resize(gradients.GetNumRows(), numColsNeeded);
-		SetValue(0.0);
 	}
 	if (GetNumRows() != gradients.GetNumRows() || GetNumCols() != numColsNeeded)
 		LogicError("The matrix gradients does not have expected dimensions");
@@ -1219,44 +1219,8 @@ void CPUMatrix<ElemType>::AdaDeltaFlushTimestamps(size_t cols, ElemType rho, int
 	}
 }
 
-// Resize() -- Tests if the matrix is the right size. If not, resizes the matrix. This avoids the VerifyResizable check if we're already the right size.
-//template <class ElemType>
-//void CPUMatrix<ElemType>::Resize(size_t numRows, size_t numCols, bool growOnly)
-//{
-//	if (GetNumRows() != numRows || GetNumCols() != numCols)
-//		Resize(numRows, numCols, growOnly);
-//}
-
-// Resize() -- change matrix size
-// This function is cheap if the matrix size does not change.
-// Current content is not preserved.
-// If growOnly is true, resize will not reallocate memory if the current memory is large enough (i.e., will not shrink).
-// If this object does not own its memory then new memory cannot be allocated (one can still shrink and/or reshape).
-//template <class ElemType>
-//void CPUMatrix<ElemType>::Resize(size_t rows, size_t cols, bool growOnly)
-//{
-//	if (rows == m_numRows && cols == m_numCols) return;
-//
-//	VerifyResizable(__func__);
-//
-//	size_t n = rows * cols;
-//	if (n > GetSizeAllocated() ||                 // grow allocation
-//		(!growOnly && (n != GetSizeAllocated()))) // shrink allocation (not if 'growOnly')
-//	{
-//		// reallocate buffer
-//		ElemType* pArray = (n==0) ? nullptr : NewArray<ElemType>(n);
-//		delete[] Buffer();
-//
-//		SetBuffer(pArray, n * sizeof(ElemType));
-//		SetSizeAllocated(n);
-//	}
-//	m_numRows = rows;
-//	m_numCols = cols;
-//	m_sliceOffset = 0;
-//}
-
-//// allocated by the callee but should be deleted by the caller
-//// TODO: change to use STL vector instead
+// allocated by the callee but should be deleted by the caller
+// TODO: change to use STL vector instead
 ///template <class ElemType>
 ///ElemType* CPUMatrix<ElemType>::CopyToArray() const
 ///{
@@ -1860,8 +1824,7 @@ CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignLinearRectifierDerivativeOf(cons
 		LogicError("AssignLinearRectifierDerivativeOf; Matrix a is empty");
 
 	auto& us = *this;
-	if (this != &a)
-		Resize(a.GetNumRows(), a.GetNumCols());
+	if (this != &a) Resize(a.GetNumRows(), a.GetNumCols());
 
 	long m = (long) GetNumRows(), n = (long) GetNumCols();
 	long m4 = m & ~3;
@@ -1898,8 +1861,7 @@ CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignSigmoidDerivativeOf(const CPUMat
 		LogicError("AssignSigmoidDerivativeOf; Matrix a is empty");
 
 	auto& us = *this;
-	if (this != &a)
-		Resize(a.GetNumRows(), a.GetNumCols());
+	if (this != &a) Resize(a.GetNumRows(), a.GetNumCols());
 
 	long m = (long) GetNumRows(), n = (long) GetNumCols();
 	long m4 = m & ~3;
@@ -1977,8 +1939,7 @@ CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignAtanhOf(const CPUMatrix<ElemType
 		LogicError("AssignAtanhOf; Matrix a is empty");
 
 	auto& us = *this;
-	if (this != &a)
-		Resize(a.GetNumRows(), a.GetNumCols());
+	if (this != &a) Resize(a.GetNumRows(), a.GetNumCols());
 
 	long m = (long) GetNumRows(), n = (long) GetNumCols();
 	long m4 = m & ~3;
@@ -2793,7 +2754,7 @@ CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignOneHot(const CPUMatrix<ElemType>
 	auto& us = *this;
 	auto nCols = a.GetNumCols();
 	auto nRows = num_class * a.GetNumRows();
-	us.Resize(nRows, nCols);
+	Resize(nRows, nCols);
 	ElemType* bufPtr = GetData();
 	ElemType* aBufPtr = a.GetData();
 	memset(bufPtr, 0, sizeof(ElemType) * nRows *nCols);

@@ -37,8 +37,15 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 template <class ElemType>
 void CPUSparseMatrix<ElemType>::SetValue(const CPUSparseMatrix<ElemType>& mat)
 {
+	if (&mat==this) return;
 	if (mat.IsColMajor()) Assign(mat);
 	else Assign(mat.TransposeTo(CPUSparseMatrix(),true),true);
+}
+
+template <class ElemType>
+void CPUSparseMatrix<ElemType>::SetValue(size_t rows, size_t cols, ElemType* p, int flags)
+{
+	Assign(rows, cols, p, flags);
 }
 
 template <class ElemType>

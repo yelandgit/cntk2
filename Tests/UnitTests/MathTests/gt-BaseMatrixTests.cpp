@@ -112,79 +112,96 @@ TEST_F(BaseMatrixTests, ShortConstructorNoFlags)
 	ASSERT_TRUE(m1.IsEqualTo(m));
 }
 
-TEST_F(BaseMatrixTests, CreateFromData)
+static void CheckAssign(MatrixFormat mft)
 {
 	BaseMatrix<float> m; 
-	std::array<float, 6> array = { 1, 2, 3, 4, 5, 6 };
+	std::array<float,8> array = { 1, 2, 3, 4, 5, 6, 7, 8 };
 
-	m.Init(matrixFormatDenseCol);
-	m.Assign(2, 3, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(0,0), 1);
-	ASSERT_EQ(m.GetItem(0,1), 3);
-	ASSERT_EQ(m.GetItem(0,2), 5);
-	ASSERT_EQ(m.GetItem(1,0), 2);
-	ASSERT_EQ(m.GetItem(1,1), 4);
-	ASSERT_EQ(m.GetItem(1,2), 6);
+	m.Init(mft);
+	m.Assign(4, 2, array.data(), matrixFlagNone);
+	cout << endl; m.ViewData(cout);
 
-	m.Init(matrixFormatDenseRow);
-	m.Assign(2, 3, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(0,0), 1);
-	ASSERT_EQ(m.GetItem(0,1), 2);
-	ASSERT_EQ(m.GetItem(0,2), 3);
-	ASSERT_EQ(m.GetItem(1,0), 4);
-	ASSERT_EQ(m.GetItem(1,1), 5);
-	ASSERT_EQ(m.GetItem(1,2), 6);
+	m.Init(mft);
+	m.Assign(4, 2, array.data(), matrixFlagRowMajor);
+	cout << endl; m.ViewData(cout);
 
-	m.Init(matrixFormatSparseCSC);
-	m.Assign(2, 3, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(0,0), 1);
-	ASSERT_EQ(m.GetItem(0,1), 3);
-	ASSERT_EQ(m.GetItem(0,2), 5);
-	ASSERT_EQ(m.GetItem(1,0), 2);
-	ASSERT_EQ(m.GetItem(1,1), 4);
-	ASSERT_EQ(m.GetItem(1,2), 6);
+	m.Init(MatrixFormat(mft | matrixFormatRowMajor));
+	m.Assign(4, 2, array.data(), matrixFlagNone);
+	cout << endl; m.ViewData(cout);
 
-	m.Init(matrixFormatSparseCSR);
-	m.Assign(2, 3, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(0,0), 1);
-	ASSERT_EQ(m.GetItem(0,1), 2);
-	ASSERT_EQ(m.GetItem(0,2), 3);
-	ASSERT_EQ(m.GetItem(1,0), 4);
-	ASSERT_EQ(m.GetItem(1,1), 5);
-	ASSERT_EQ(m.GetItem(1,2), 6);
-
-	m.Init(matrixFormatSparseBSC);
-	m.Assign(2, 3, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(0,0), 1);
-	ASSERT_EQ(m.GetItem(0,1), 3);
-	ASSERT_EQ(m.GetItem(0,2), 5);
-	ASSERT_EQ(m.GetItem(1,0), 2);
-	ASSERT_EQ(m.GetItem(1,1), 4);
-	ASSERT_EQ(m.GetItem(1,2), 6);
-
-	m.Init(matrixFormatSparseBSR);
-	m.Assign(2, 3, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(0,0), 1);
-	ASSERT_EQ(m.GetItem(0,1), 2);
-	ASSERT_EQ(m.GetItem(0,2), 3);
-	ASSERT_EQ(m.GetItem(1,0), 4);
-	ASSERT_EQ(m.GetItem(1,1), 5);
-	ASSERT_EQ(m.GetItem(1,2), 6);
+	m.Init(MatrixFormat(mft | matrixFormatRowMajor));
+	m.Assign(4, 2, array.data(), matrixFlagRowMajor);
+	cout << endl; m.ViewData(cout);
 }
 
-TEST_F(BaseMatrixTests, Slice)
+static void TestCreateFromData(MatrixFormat mft)
 {
+	if ((mft & matrixFormatSparse)==0) cout << "\t\tmatrix DenseCol/Row" << endl;
+	else if (mft & matrixFormatBlock) cout << "\t\tmatrix SparseBSC/BSR" << endl;
+	else cout << "\t\tmatrix SparseCSC/CSR" << endl;
+
+	BaseMatrix<float> m;
+	std::array<float, 6> array = { 1, 2, 3, 4, 5, 6 };
+
+	m.Init(mft);
+	m.Assign(3, 2, array.data(), matrixFlagNone);
+	ASSERT_EQ(m.GetItem(0,0), 1);
+	ASSERT_EQ(m.GetItem(1,0), 2);
+	ASSERT_EQ(m.GetItem(2,0), 3);
+	ASSERT_EQ(m.GetItem(0,1), 4);
+	ASSERT_EQ(m.GetItem(1,1), 5);
+	ASSERT_EQ(m.GetItem(2,1), 6);
+
+	m.Init(mft);
+	m.Assign(3, 2, array.data(), matrixFlagRowMajor);
+	ASSERT_EQ(m.GetItem(0,0), 1);
+	ASSERT_EQ(m.GetItem(1,0), 3);
+	ASSERT_EQ(m.GetItem(2,0), 5);
+	ASSERT_EQ(m.GetItem(0,1), 2);
+	ASSERT_EQ(m.GetItem(1,1), 4);
+	ASSERT_EQ(m.GetItem(2,1), 6);
+
+	m.Init(MatrixFormat(mft | matrixFormatRowMajor));
+	m.Assign(3, 2, array.data(), matrixFlagNone);
+	ASSERT_EQ(m.GetItem(0, 0), 1);
+	ASSERT_EQ(m.GetItem(0, 1), 4);
+	ASSERT_EQ(m.GetItem(1, 0), 2);
+	ASSERT_EQ(m.GetItem(1, 1), 5);
+	ASSERT_EQ(m.GetItem(2, 0), 3);
+	ASSERT_EQ(m.GetItem(2, 1), 6);
+
+	m.Init(MatrixFormat(mft | matrixFormatRowMajor));
+	m.Assign(3, 2, array.data(), matrixFlagRowMajor);
+	ASSERT_EQ(m.GetItem(0, 0), 1);
+	ASSERT_EQ(m.GetItem(0, 1), 2);
+	ASSERT_EQ(m.GetItem(1, 0), 3);
+	ASSERT_EQ(m.GetItem(1, 1), 4);
+	ASSERT_EQ(m.GetItem(2, 0), 5);
+	ASSERT_EQ(m.GetItem(2, 1), 6);
+}
+
+TEST_F(BaseMatrixTests, CreateFromData)
+{
+	//CheckAssign(matrixFormatDenseCol);
+	//CheckAssign(matrixFormatSparseCSC);
+	//CheckAssign(matrixFormatSparseBSC);
+
+	TestCreateFromData(matrixFormatDense);
+	TestCreateFromData(matrixFormatSparse);
+	TestCreateFromData(matrixFormatSparseBlock);
+}
+
+static void TestSetSlice(MatrixFormat mft)
+{
+	if ((mft & matrixFormatSparse)==0) cout << "\t\tmatrix DenseCol/Row" << endl;
+	else if (mft & matrixFormatBlock) cout << "\t\tmatrix SparseBSC/BSR" << endl;
+	else cout << "\t\tmatrix SparseCSC/CSR" << endl;
+
 	BaseMatrix<float> m;
 	std::array<float, 12> array = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 
-	// Dense, column major
-	m.Init(matrixFormatDenseCol);
+	m.Init(mft);
 	m.Assign(3, 4, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(0,1), 4);
-	ASSERT_EQ(m.GetItem(1,0), 2);
-	ASSERT_EQ(m.GetItem(1,3), 11);
-	ASSERT_EQ(m.GetItem(2,2), 9);
-
 	m.SetSlice(1,2);
 	ASSERT_EQ(m.GetItem(0,0), 4);
 	ASSERT_EQ(m.GetItem(0,1), 7);
@@ -196,52 +213,35 @@ TEST_F(BaseMatrixTests, Slice)
 	m.ResizeBack();
 	ASSERT_EQ(m.GetItem(1,2), 22);
 
-	// Dense, row major
-	m.Init(matrixFormatDenseRow);
-	m.Assign(3, 4, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(1,0), 5);
-	ASSERT_EQ(m.GetItem(0,1), 2);
-	ASSERT_EQ(m.GetItem(2,2), 11);
-	ASSERT_EQ(m.GetItem(1,3), 8);
-
+	m.Init(mft);
+	m.Assign(3, 4, array.data(), matrixFlagRowMajor);
 	m.SetSlice(1,2);
-	ASSERT_EQ(m.GetItem(0,0), 5);
-	ASSERT_EQ(m.GetItem(0,2), 7);
-	ASSERT_EQ(m.GetItem(1,0), 9);
-	ASSERT_EQ(m.GetItem(1,2), 11);
-
-	m.PutItem(1,1,22);
-	ASSERT_EQ(m.GetItem(1,1), 22);
-	m.ResizeBack();
-	ASSERT_EQ(m.GetItem(2,1), 22);
-
-	// SparseCSC
-	m.Init(matrixFormatSparseCSC);
-	m.Assign(3, 4, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(0,1), 4);
-	ASSERT_EQ(m.GetItem(1,0), 2);
-	ASSERT_EQ(m.GetItem(1,3), 11);
-	ASSERT_EQ(m.GetItem(2,2), 9);
-
-	m.SetSlice(1,2);
-	ASSERT_EQ(m.GetItem(0,0), 4);
-	ASSERT_EQ(m.GetItem(0,1), 7);
-	ASSERT_EQ(m.GetItem(2,0), 6);
-	ASSERT_EQ(m.GetItem(2,1), 9);
+	ASSERT_EQ(m.GetItem(0,0), 2);
+	ASSERT_EQ(m.GetItem(2,0), 10);
+	ASSERT_EQ(m.GetItem(0,1), 3);
+	ASSERT_EQ(m.GetItem(2,1), 11);
 
 	m.PutItem(1,1,22);
 	ASSERT_EQ(m.GetItem(1,1), 22);
 	m.ResizeBack();
 	ASSERT_EQ(m.GetItem(1,2), 22);
 
-	// SparseCSR
-	m.Init(matrixFormatSparseCSR);
+	m.Init(MatrixFormat(mft | matrixFormatRowMajor));
 	m.Assign(3, 4, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(1,0), 5);
-	ASSERT_EQ(m.GetItem(0,1), 2);
-	ASSERT_EQ(m.GetItem(2,2), 11);
-	ASSERT_EQ(m.GetItem(1,3), 8);
+	m.SetSlice(1,2);
+//cout << endl << m.GetInfo() << endl; m.ViewData(cout);
+	ASSERT_EQ(m.GetItem(0,0), 2);
+	ASSERT_EQ(m.GetItem(0,2), 8);
+	ASSERT_EQ(m.GetItem(1,0), 3);
+	ASSERT_EQ(m.GetItem(1,2), 9);
 
+	m.PutItem(1,1,22);
+	ASSERT_EQ(m.GetItem(1,1), 22);
+	m.ResizeBack();
+	ASSERT_EQ(m.GetItem(2,1), 22);
+
+	m.Init(MatrixFormat(mft | matrixFormatRowMajor));
+	m.Assign(3, 4, array.data(), matrixFlagRowMajor);
 	m.SetSlice(1,2);
 	ASSERT_EQ(m.GetItem(0,0), 5);
 	ASSERT_EQ(m.GetItem(0,2), 7);
@@ -252,44 +252,13 @@ TEST_F(BaseMatrixTests, Slice)
 	ASSERT_EQ(m.GetItem(1,1), 22);
 	m.ResizeBack();
 	ASSERT_EQ(m.GetItem(2,1), 22);
+}
 
-	// SparseBSC
-	m.Init(matrixFormatSparseBSC);
-	m.Assign(3, 4, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(0,1), 4);
-	ASSERT_EQ(m.GetItem(1,0), 2);
-	ASSERT_EQ(m.GetItem(1,3), 11);
-	ASSERT_EQ(m.GetItem(2,2), 9);
-
-	m.SetSlice(1,2);
-	ASSERT_EQ(m.GetItem(0,0), 4);
-	ASSERT_EQ(m.GetItem(0,1), 7);
-	ASSERT_EQ(m.GetItem(2,0), 6);
-	ASSERT_EQ(m.GetItem(2,1), 9);
-
-	m.PutItem(1,1,22);
-	ASSERT_EQ(m.GetItem(1,1), 22);
-	m.ResizeBack();
-	ASSERT_EQ(m.GetItem(1,2), 22);
-
-	// SparseBSR
-	m.Init(matrixFormatSparseBSR);
-	m.Assign(3, 4, array.data(), matrixFlagNone);
-	ASSERT_EQ(m.GetItem(1,0), 5);
-	ASSERT_EQ(m.GetItem(0,1), 2);
-	ASSERT_EQ(m.GetItem(2,2), 11);
-	ASSERT_EQ(m.GetItem(1,3), 8);
-
-	m.SetSlice(1,2);
-	ASSERT_EQ(m.GetItem(0,0), 5);
-	ASSERT_EQ(m.GetItem(0,2), 7);
-	ASSERT_EQ(m.GetItem(1,0), 9);
-	ASSERT_EQ(m.GetItem(1,2), 11);
-
-	m.PutItem(1,1,22);
-	ASSERT_EQ(m.GetItem(1,1), 22);
-	m.ResizeBack();
-	ASSERT_EQ(m.GetItem(2,1), 22);
+TEST_F(BaseMatrixTests, SetSlice)
+{
+	TestSetSlice(matrixFormatDense);
+	TestSetSlice(matrixFormatSparse);
+	TestSetSlice(matrixFormatSparseBlock);
 }
 
 TEST_F(BaseMatrixTests, Assign)
@@ -327,7 +296,7 @@ static void TestCopyTo(MatrixFormat mft)
 	m1.Assign(3, 4, array.data(), matrixFlagNone);
 	bool rmf = m1.IsRowMajor();
 
-	cout << "\t\tmatrix " << m1.Format() << endl;
+	cout << "\t\tmatrix " << m1.FormatStr() << endl;
 
 	m1.CopyToDense(m2);
 	ASSERT_TRUE(m2.GetFormat()== (rmf ? matrixFormatDenseRow : matrixFormatDenseCol));
@@ -370,7 +339,7 @@ static void TestMakeFullBlock(MatrixFormat mft)
 	m1.Assign(3, 4, array.data(), matrixFlagNone);
 	size_t nref = (m1.IsRowMajor()) ? m1.GetNumRows() : m1.GetNumCols();
 
-	cout << "\t\tmatrix " << m1.Format() << endl;
+	cout << "\t\tmatrix " << m1.FormatStr() << endl;
 
 	m1.CopyToFullBlock(m2);
 	ASSERT_EQ(m2.GetBlockCount(), nref);
@@ -397,42 +366,29 @@ static void TestGetPutSparseData(MatrixFormat mft)
 	BaseMatrix<float> m1(mft);
 	m1.Assign(3, 4, array.data());
 
-	cout << "\t\tmatrix " << m1.Format() << endl;
+	cout << "\t\tmatrix " << m1.FormatStr() << endl;
 
 	// whole matrix
 	SparseData<float> v; m1.GetSparseData(v);
-	ASSERT_EQ(v.size(), 6);
 	if (m1.IsRowMajor())
 	{
-		ASSERT_EQ(v[0].row, 0);
-		ASSERT_EQ(v[0].col, 1);
-		ASSERT_EQ(v[1].row, 0);
-		ASSERT_EQ(v[1].col, 3);
-		ASSERT_EQ(v[2].row, 1);
-		ASSERT_EQ(v[2].col, 1);
-		ASSERT_EQ(v[3].row, 1);
-		ASSERT_EQ(v[3].col, 3);
-		ASSERT_EQ(v[4].row, 2);
-		ASSERT_EQ(v[4].col, 1);
-		ASSERT_EQ(v[5].row, 2);
-		ASSERT_EQ(v[5].col, 3);
+		ASSERT_EQ(v.size(), 6);
+        ASSERT_EQ(v[0], ElemItem<float>(0, 1, 4.f));
+        ASSERT_EQ(v[1], ElemItem<float>(0, 3, 10.f));
+        ASSERT_EQ(v[2], ElemItem<float>(1, 0, 2.f));
+        ASSERT_EQ(v[3], ElemItem<float>(1, 2, 8.f));
+        ASSERT_EQ(v[4], ElemItem<float>(2, 1, 6.f));
+        ASSERT_EQ(v[5], ElemItem<float>(2, 3, 12.f));
 	}
 	else
 	{
-		ASSERT_EQ(v[0].row, 1);
-		ASSERT_EQ(v[0].col, 0);
-		ASSERT_EQ(v[0].row, 1);
-		ASSERT_EQ(v[0].col, 0);
-		ASSERT_EQ(v[1].row, 0);
-		ASSERT_EQ(v[1].col, 1);
-		ASSERT_EQ(v[2].row, 2);
-		ASSERT_EQ(v[2].col, 1);
-		ASSERT_EQ(v[3].row, 1);
-		ASSERT_EQ(v[3].col, 2);
-		ASSERT_EQ(v[4].row, 0);
-		ASSERT_EQ(v[4].col, 3);
-		ASSERT_EQ(v[5].row, 2);
-		ASSERT_EQ(v[5].col, 3);
+		ASSERT_EQ(v.size(), 6);
+        ASSERT_EQ(v[0], ElemItem<float>(1, 0, 2.f));
+        ASSERT_EQ(v[1], ElemItem<float>(0, 1, 4.f));
+        ASSERT_EQ(v[2], ElemItem<float>(2, 1, 6.f));
+        ASSERT_EQ(v[3], ElemItem<float>(1, 2, 8.f));
+        ASSERT_EQ(v[4], ElemItem<float>(0, 3, 10.f));
+        ASSERT_EQ(v[5], ElemItem<float>(2, 3, 12.f));
 	}
 	// slice
 	m1.SetSlice(1,2);
@@ -440,24 +396,17 @@ static void TestGetPutSparseData(MatrixFormat mft)
 	if (m1.IsRowMajor())
 	{
 		ASSERT_EQ(v.size(), 4);
-		ASSERT_EQ(v[0].row, 0);
-		ASSERT_EQ(v[0].col, 1);
-		ASSERT_EQ(v[1].row, 0);
-		ASSERT_EQ(v[1].col, 3);
-		ASSERT_EQ(v[2].row, 1);
-		ASSERT_EQ(v[2].col, 1);
-		ASSERT_EQ(v[3].row, 1);
-		ASSERT_EQ(v[3].col, 3);
+        ASSERT_EQ(v[0], ElemItem<float>(0, 0, 2.f));
+        ASSERT_EQ(v[1], ElemItem<float>(0, 2, 8.f));
+        ASSERT_EQ(v[2], ElemItem<float>(1, 1, 6.f));
+        ASSERT_EQ(v[3], ElemItem<float>(1, 3, 12.f));
 	}
 	else
 	{
 		ASSERT_EQ(v.size(), 3);
-		ASSERT_EQ(v[0].row, 0);
-		ASSERT_EQ(v[0].col, 0);
-		ASSERT_EQ(v[1].row, 2);
-		ASSERT_EQ(v[1].col, 0);
-		ASSERT_EQ(v[2].row, 1);
-		ASSERT_EQ(v[2].col, 1);
+        ASSERT_EQ(v[0], ElemItem<float>(0, 0, 4.f));
+        ASSERT_EQ(v[1], ElemItem<float>(2, 0, 6.f));
+        ASSERT_EQ(v[2], ElemItem<float>(1, 1, 8.f));
 	}
 	// assign whole matrix
 	BaseMatrix<float> m2(mft);
@@ -482,7 +431,7 @@ static void TestTransposeTo(MatrixFormat mft)
 	std::array<float, 12> array = { 0, 2, 0, 4, 5, 6, 0, 8, 9, 0, 0, 0 };
 	m1.Assign(3, 4, array.data(), matrixFlagNone);
 
-	cout << "\t\tmatrix " << m1.Format() << endl;
+	cout << "\t\tmatrix " << m1.FormatStr() << endl;
 
 	BaseMatrix<float> m2; m1.TransposeTo(m2);
 	ASSERT_EQ(m2.GetNumRows(), m1.GetNumCols());
@@ -513,7 +462,7 @@ static void TestReshape(MatrixFormat mft)
 	std::array<float, 12> array = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 	m1.Init(mft); m1.Assign(3, 4, array.data(), matrixFlagNone);
 
-	cout << "\t\tmatrix " << m1.Format() << endl;
+	cout << "\t\tmatrix " << m1.FormatStr() << endl;
 
 	size_t rows = 4;
 	size_t cols = 3;
