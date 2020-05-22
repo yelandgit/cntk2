@@ -148,43 +148,6 @@ void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
 	}
 }
 
-//template <class ElemType>
-//void CPUSparseMatrix<ElemType>::AssignColumnSliceTo(CPUMatrix<ElemType>& slice, size_t start, size_t len) const
-//{
-//	MatrixFormat mft = GetFormat();
-//	if (mft & matrixFormatRowMajor)
-//		RuntimeError("ColumnSlice is not supported for row major matrix");
-//	if (start+len > m_numCols)
-//		InvalidArgument("The slice (%lu+%lu) is out of range of the source matrix (%lu)", start, len, m_numCols);
-//
-//	slice.Resize(m_numRows, len);
-//	ElemType* src = GetBuffer();
-//	ElemType* dst = slice.GetBuffer();
-//	index_t* primePos = GetPrimePos() + start;
-//
-//	if (mft == matrixFormatSparseCSC)
-//	{
-//		index_t* compId = GetCompId();
-////#pragma omp parallel for
-//		for (long j=0; j<len; ++j)
-//		{
-//			long ns = primePos[j], ne = primePos[j+1];
-//			for (long k=ns; k<ne; ++k) dst[compId[k]] = src[k];
-//			dst += m_numRows;
-//		}
-//	}
-//	else if (mft == matrixFormatSparseBSC)
-//	{
-////#pragma omp parallel for
-//		for (long j=0; j<len; ++j)
-//		{
-//			size_t k = compPos[j];
-//			if (k!=string::npos) memcpy(dst, src+k*m_numRows, m_numRows*sizeof(ElemType));
-//			dst += m_numRows;
-//		}
-//	}
-//}
-
 
 
 
@@ -244,119 +207,6 @@ void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
 ///
 ///	return *this;
 ///}
-///
-///#pragma endregion Constructors and Destructor
-///
-///#pragma region Basic Operators
-///
-/// make sure call order in column wise for CSC and row wise for CSR
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::SetValue(size_t row, size_t col, ElemType v)
-///{
-///	if (!OwnBuffer())
-///		LogicError("Cannot modify since the buffer is managed externally");
-///	if (GetFormat() != matrixFormatSparseCSC && GetFormat() != matrixFormatSparseCSR)
-///		LogicError("CPUSparseMatrix:  unsupported SetValue() call");
-///
-///	if ((GetFormat() == matrixFormatSparseCSC) && ((*this)(row, col) == v))
-///		return;
-///
-///	let nz = NzCount();
-///	if (GetSizeAllocated() < nz + 1) // automatic resize
-///		Allocate(m_numRows, m_numCols, nz + 100, true, true); // allocate 100 more elelemnts and keep existing values
-///
-///	if (row < 0 || row >= m_numRows) LogicError("CPUSparseMatrix: SetValue() invalid row id");
-///	if (col < 0 || col >= m_numCols) LogicError("CPUSparseMatrix: SetValue() invalid column id");
-///
-///	size_t r = (GetFormat() == matrixFormatSparseCSC) ? row : col;
-///	size_t c = (GetFormat() == matrixFormatSparseCSC) ? col : row;
-///
-///	Data()[nz] = v;
-///	MajorIndexLocation()[nz] = (index_t) r;
-///
-///	// consistency check
-///	if (nz > 0)
-///	{
-///		if (c == GetColIdx() && r <= MajorIndexLocation()[nz - 1])
-///			LogicError("CPUSparseMatrix:  SetValue is not called properly");
-///	}
-///	if (c != GetColIdx())
-///	{
-///		SecondIndexLocation()[c] = index_t(nz);
-///		SetColIdx((int) c);
-///	}
-///	// Note we don't have m_nz anymore. In order for the change from m_nz to
-///	// NzCount to make sense, we need to propogate nz+1 to all col slices.
-///	for (size_t max = c + 1; max < m_numCols + 1; max++)
-///		SecondIndexLocation()[max] = index_t(nz + 1);
-///}
-
-// make sure call order in colume wise for CSC and row wise for CSR
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::SetValue(const CPUSparseMatrix<ElemType>& mat)
-///{
-///	if (&mat == this) return;
-///
-///	MatrixFormat mft = mat.GetFormat();
-///
-///	Init(mft, CPUDEVICE);
-///	Resize(mat.GetNumRows(), mat.GetNumCols()); if (IsEmpty()) return;
-///	size_t nc = (mft & matrixFormatRowMajor) ? m_numRows : m_numCols;
-///	size_t nr = (mft & matrixFormatRowMajor) ? m_numCols : m_numRows;
-///
-///	if (mft == matrixFormatSparseCSC || mft == matrixFormatSparseCSR)
-///	{
-///		index_t* primePos = mat.GetPrimePos();
-///		size_t ns = primePos[0], ne = primePos[nc];
-///		size_t n = ne - ns; if (n==0) { Allocate(max(nc,nr)); return; }
-///
-///		Allocate(n);
-///		index_t* compPos = GetCompPos();
-///		memcpy(compPos, primePos, (nc+1)*sizeof(index_t));
-///		for (size_t j=1; j<=nc; ++j) compPos[j] -= compPos[0]; compPos[0] = 0;
-///		memcpy(GetCompId(), mat.GetCompId()+ns, n*sizeof(index_t));
-///		memcpy(Buffer(), mat.Buffer()+ns, n*sizeof(ElemType));
-///	}
-///	else if (mft == matrixFormatSparseBSC || mft == matrixFormatSparseBSR)
-///	{
-///		size_t n = 0;
-///		index_t* srcPos = mat.GetBlockPos();
-///		index_t* dstPos = GetBlockPos();
-///		for (size_t j=0; j<nc; ++j) if (srcPos[j]!=string::npos) ++n;
-///
-///		Allocate(n==0 ? nr : n*nr); n = 0;
-///		const ElemType* src = mat.Buffer();
-///		ElemType* dst = Buffer();
-///		for (size_t j=0; j<nc; ++j)
-///		{
-///			size_t i = srcPos[j];
-///			if (i==string::npos) { dstPos[j] = i; continue; }
-///			memcpy(dst+n*nr, src+srcPos[j]*nr, nr*sizeof(ElemType));
-///			dstPos[j] = n++;
-///		}
-///		SetBlockCount(n);
-///	}
-///}
-
-///#if 0
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::SetValue(const CPUMatrix<ElemType>& /*v*/)
-///{
-///	NOT_IMPLEMENTED;
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::SetValue(const GPUMatrix<ElemType>& /*v*/)
-///{
-///	NOT_IMPLEMENTED;
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::SetValue(const GPUSparseMatrix<ElemType>& /*v*/)
-///{
-///	NOT_IMPLEMENTED;
-///}
-///#endif
 
 ///template <class ElemType>
 ///void CPUSparseMatrix<ElemType>::MaskColumnsValue(const CPUMatrix<char>& mask, ElemType val, size_t mcols)
@@ -479,34 +329,6 @@ void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
 ///}
 
 ///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::Print(const char* matrixName) const
-///{
-///	Print(matrixName, 0, 0, 0, 0);
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::Print(const char* matrixName, ptrdiff_t /*rowStart*/, ptrdiff_t /*rowEnd*/, ptrdiff_t /*colStart*/, ptrdiff_t /*colEnd*/) const
-///{
-///	if (GetFormat() != matrixFormatSparseCSC && GetFormat() != matrixFormatSparseCSR)
-///		// NOT_IMPLEMENTED;
-///		return;
-///
-///	fprintf(stderr, "%s\n", matrixName);
-///
-///	const ElemType* dataBuffer = NzValues();
-///	const size_t nz = MajorIndexCount();
-///	index_t* unCompressedIndex = MajorIndexLocation();
-///	index_t* compressedIndex = SecondIndexLocation();
-///
-///	for (size_t i = 0, j = 0; i < nz; ++i)
-///	{
-///		if (i >= compressedIndex[j]) { fprintf(stderr, "\n"); j++; }
-///		fprintf(stderr, "%d:%.f ", unCompressedIndex[i], (double)dataBuffer[i]);
-///	}
-///	fprintf(stderr, "\n");
-///}
-
-///template <class ElemType>
 ///void CPUSparseMatrix<ElemType>::SetMatrixFromCSCFormat(const index_t* pCol, const index_t* pRow, const ElemType* pVal, const size_t nz, size_t numRows, size_t numCols)
 ///{
 ///	if (!OwnBuffer())
@@ -550,164 +372,11 @@ void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
 ///	memcpy(Buffer(), pVal, numBlocks*numRows*sizeof(ElemType));
 ///	SetBlockCount(numBlocks);
 ///}
-///
-///template <class ElemType>
-///ElemType* CPUSparseMatrix<ElemType>::Data()  const
-///{
-///	MatrixFormat mft = GetFormat();
-///	return (Buffer() + (mft == matrixFormatSparseCSC || mft == matrixFormatSparseCSR ? GetCompPos()[m_sliceOffset] : 0));
-///}
-///
-//// WARNING: When memory is reallocated, existing information will be lost.
-//// TODO: add keepval (default to true) argument so that the existing values are kept even after reallocation
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::Allocate(size_t numRows, size_t numCols, size_t numNZElemRequested, bool growOnly, bool keepval)
-///{
-///	if (m_numRows != numRows || m_numCols != numCols)
-///		LogicError("Error, calling allocate with dimensions (%d, %d), but the matrix has dimension (%d, %d)", (int)numRows, (int)numCols, (int)GetNumRows(), (int)GetNumCols());
-///
-///	size_t numNzElem = max(numNZElemRequested, 1);
-///	size_t newCompIndexSize;
-///	if (GetFormat() == matrixFormatSparseCSC) newCompIndexSize = numCols + 1;
-///	else if (GetFormat() == matrixFormatSparseCSR) newCompIndexSize = numRows + 1;
-///	else newCompIndexSize = (numCols > numRows ? numCols : numRows) + 1;
-///
-///	bool reallocate = (GetSizeAllocated() < numNzElem || 
-///					(GetSizeAllocated() > numNzElem && !growOnly) || 
-///					GetCompPosSize() < newCompIndexSize);
-///	if (reallocate)
-///	{
-///		if (GetFormat() == matrixFormatSparseCSC || 
-///			GetFormat() == matrixFormatSparseCSR)
-///		{
-///			// The initialization of the following buffer is done by new []().
-///			auto* pArray      = new ElemType[numNzElem]();
-///			auto* unCompIndex = new index_t[numNzElem]();
-///			auto* compIndex   = new index_t[newCompIndexSize]();
-///
-///			if (keepval && (NzCount() > numNzElem || GetCompPosSize() > newCompIndexSize))
-///				LogicError("Allocate: To keep values m_nz should <= numNzElem and m_compIndexSize <= newCompIndexSize");
-///
-///			if (keepval && NzCount() > 0)
-///			{
-///				assert(GetCompPosSize() > 0 && NzCount() < numNzElem);
-///				memcpy(pArray, Data(), NzSize());
-///				memcpy(unCompIndex, GetCompId(), MajorIndexSize());
-///				memcpy(compIndex, GetCompPos(), SecondIndexSize());
-///			}
-///			// TODO: This is super ugly. The internals of the storage object should be a shared_ptr.
-///			delete[] Buffer();
-///			delete[] GetCompId();
-///			delete[] GetCompPos();
-///
-///			SetBuffer(pArray, numNzElem, false);
-///			SetCompId(unCompIndex);
-///			SetCompPos(compIndex);
-///		}
-///		else if (GetFormat() == matrixFormatSparseBSC || 
-///				GetFormat() == matrixFormatSparseBSR)
-///		{
-///			ElemType* blockVal = new ElemType[numNzElem];
-///			index_t* blockIds = new size_t[newCompIndexSize];
-///
-///			if (keepval && (NzCount() > numNzElem || GetCompPosSize() > newCompIndexSize))
-///				LogicError("Resize: To keep values m_nz should <= numNzElem and m_compIndexSize <= newCompIndexSize");
-///
-///			if (keepval && GetSizeAllocated() > 0)
-///			{
-///				assert(GetCompPosSize() > 0 && GetSizeAllocated() < numNzElem);
-///				memcpy(blockVal, Data(), NzSize());
-///				memcpy(blockIds, GetBlockIds(), sizeof(size_t) * GetCompPosSize());
-///			}
-///			delete[] Buffer();
-///			delete[] GetBlockIds();
-///
-///			SetBuffer(blockVal, numNzElem, false);
-///			SetBlockIds(blockIds);
-///		}
-///		SetSizeAllocated(numNzElem);
-///		SetCompPosSize(newCompIndexSize);
-///	}
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::RequireSizeAndAllocate(size_t rows, size_t cols, size_t nz, bool grow, bool keepval)
-///{
-///	RequireSizeAndAllocate(numRows, numCols, numNzElem, GetFormat(), growOnly, keepval);
-///
-///	Resize(rows, cols);
-///	if (nz>0) Allocate(nz);
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::RequireSizeAndAllocate(size_t numRows, size_t numCols, size_t numNzElem, MatrixFormat mft, bool growOnly, bool keepval)
-///{
-///	RequireSize(numRows, numCols, numNzElem, mft, growOnly);
-///
-///	size_t newCompIndexSize = (numCols > numRows ? numCols : numRows) + 1;
-///	bool reallocate = (GetSizeAllocated() < numNzElem || 
-///					(GetSizeAllocated() > numNzElem && !growOnly) || 
-///					GetCompPosSize() < newCompIndexSize);
-///	if (reallocate)
-///		Allocate(numRows, numCols, numNzElem, growOnly, keepval);
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::RequireSize(size_t numRows, size_t numCols, bool growOnly)
-///{
-///	RequireSize(numRows, numCols, GetFormat(), growOnly);
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::RequireSize(size_t numRows, size_t numCols, size_t numNzElem, MatrixFormat mft, bool growOnly)
-///{
-///	if (GetFormat() != mft || m_numRows != numRows || m_numCols != numCols)
-///		Resize(numRows, numCols, numNzElem, mft, growOnly);
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::Resize(size_t numRows, size_t numCols, size_t numNz, bool growOnly)
-///{
-///	Resize(numRows, numCols);
-///	if (numNz) Allocate(numNz);
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::Resize(size_t numRows, size_t numCols, size_t numNzElem, MatrixFormat mft, bool growOnly)
-///{
-///	VerifyResizable(__func__);
-///
-///	m_sliceOffset = 0;
-///	m_numRows = numRows;
-///	m_numCols = numCols;
-///	SetNumStorageRows(numRows);
-///	SetNumStorageCols(numCols);
-///	SetFormat(mft);
-///
-///	size_t newCompIndexSize = (numCols > numRows ? numCols : numRows) + 1;
-///	bool reallocate = (GetCompPosSize() < newCompIndexSize);
-///
-///	if (reallocate) Allocate(numRows, numCols, numNzElem, growOnly, false);
-///	else Reset();
-///}
-///
-///
-//// Reset matrix to 0.
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::Reset()
-///{
-///	// This is equivalent to setting m_nz = 0; Note we can only do this for sparse CSC/CSR because CompIndexSize is overloaded.
-///	if (GetFormat() == matrixFormatSparseCSC || GetFormat() == matrixFormatSparseCSR)
-///		memset(GetCompPos(), 0, sizeof(index_t) * GetCompPosSize());
-///	SetColIdx(-1);
-///	SetBlockSize(0);
-///	SetBlockIdShift(0);
-///}
-///
-//// Implements product of one sparse and one dense matrix updating a third dense matrix. Input matrices are optionally transposed.
-//// NOTE: The only for using a class template instead of a function template was that I couldn't make the function template compile.
+
+// Implements product of one sparse and one dense matrix updating a third dense matrix. Input matrices are optionally transposed.
+// NOTE: The only for using a class template instead of a function template was that I couldn't make the function template compile.
 ///template <class ElemType, bool denseTimesSparse /* false means SparseTimesDense */, bool transposeA, bool transposeB>
-///class MultiplyDenseAndSparse{
+///class MultiplyDenseAndSparse {
 ///public:
 ///	// Note: Below the ordering of the matrix parameters 'sparse' and 'dense' does not imply the order of the matrices in the product which is instead controlled
 ///	// by the value of the boolean template parameter 'denseTimesSparse'.
@@ -806,9 +475,9 @@ void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
 ///		}
 ///	}
 ///};
-///
-//// c = alpha * lhs * rhs + beta * c
-//// dense * sparse -> dense
+
+// c = alpha * lhs * rhs + beta * c
+// dense * sparse -> dense
 ///template <class ElemType>
 ///void CPUSparseMatrix<ElemType>::MultiplyAndWeightedAdd(ElemType alpha, const CPUMatrix<ElemType>& a, bool transposeA,
 ///													const CPUSparseMatrix<ElemType>& b, bool transposeB, ElemType beta, CPUMatrix<ElemType>& c)
