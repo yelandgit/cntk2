@@ -12,7 +12,7 @@ using namespace Microsoft::MSR::CNTK;
 
 namespace Microsoft { namespace MSR { namespace CNTK { namespace Test {
 
-class BaseMatrixTest : public ::testing::Test
+class BaseMatrixTests : public ::testing::Test
 {
 public:
 	static void SetUpTestCase() {}
@@ -41,7 +41,7 @@ static void CheckBaseMatrixStorage(MatrixFormat mft)
 	cout << endl; m.ViewBuffer(cout);
 }
 
-//TEST_F(BaseMatrixTest, BaseMatrixStorage)
+//TEST_F(BaseMatrixTests, BaseMatrixStorage)
 //{
 //	CheckBaseMatrixStorage(matrixFormatDenseCol);
 //	CheckBaseMatrixStorage(matrixFormatDenseRow);
@@ -51,7 +51,7 @@ static void CheckBaseMatrixStorage(MatrixFormat mft)
 //	CheckBaseMatrixStorage(matrixFormatSparseBSR);
 //}
 
-TEST_F(BaseMatrixTest, ConstructorNoFlags)
+TEST_F(BaseMatrixTests, ConstructorNoFlags)
 {
 
 	BaseMatrix<float> m;
@@ -72,7 +72,7 @@ TEST_F(BaseMatrixTest, ConstructorNoFlags)
 	ASSERT_TRUE(m1.IsEqualTo(m));
 }
 
-TEST_F(BaseMatrixTest, CharConstructorNoFlags)
+TEST_F(BaseMatrixTests, CharConstructorNoFlags)
 {
 	BaseMatrix<char> m;
 	ASSERT_TRUE(m.IsEmpty());
@@ -92,7 +92,7 @@ TEST_F(BaseMatrixTest, CharConstructorNoFlags)
 	ASSERT_TRUE(m1.IsEqualTo(m));
 }
 
-TEST_F(BaseMatrixTest, ShortConstructorNoFlags)
+TEST_F(BaseMatrixTests, ShortConstructorNoFlags)
 {
 	BaseMatrix<short> m;
 	ASSERT_TRUE(m.IsEmpty());
@@ -112,7 +112,7 @@ TEST_F(BaseMatrixTest, ShortConstructorNoFlags)
 	ASSERT_TRUE(m1.IsEqualTo(m));
 }
 
-TEST_F(BaseMatrixTest, CreateFromData)
+TEST_F(BaseMatrixTests, CreateFromData)
 {
 	BaseMatrix<float> m; 
 	std::array<float, 6> array = { 1, 2, 3, 4, 5, 6 };
@@ -172,7 +172,7 @@ TEST_F(BaseMatrixTest, CreateFromData)
 	ASSERT_EQ(m.GetItem(1,2), 6);
 }
 
-TEST_F(BaseMatrixTest, Slice)
+TEST_F(BaseMatrixTests, Slice)
 {
 	BaseMatrix<float> m;
 	std::array<float, 12> array = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
@@ -292,7 +292,7 @@ TEST_F(BaseMatrixTest, Slice)
 	ASSERT_EQ(m.GetItem(2,1), 22);
 }
 
-TEST_F(BaseMatrixTest, Assign)
+TEST_F(BaseMatrixTests, Assign)
 {
 	BaseMatrix<float> m1, m2, m3;
 	std::array<float, 12> array = { 0, 2, 0, 4, 0, 6, 0, 8, 0, 0, 0, 0 };
@@ -332,27 +332,26 @@ static void TestCopyTo(MatrixFormat mft)
 	m1.CopyToDense(m2);
 	ASSERT_TRUE(m2.GetFormat()== (rmf ? matrixFormatDenseRow : matrixFormatDenseCol));
 	ASSERT_TRUE(m2.IsEqualTo(m1));
-	m1.SetSlice(1,2); m1.CopyToDense(m2); m2.ResizeBack();
+	m1.SetSlice(1,2); m1.CopyToDense(m2);
+	ASSERT_FALSE(m2.IsSlice());
 	ASSERT_TRUE(m2.IsEqualTo(m1));
 
 	m1.ResizeBack(); m1.CopyToSparse(m2);
 	ASSERT_TRUE(m2.GetFormat()== (rmf ? matrixFormatSparseCSR : matrixFormatSparseCSC));
 	ASSERT_TRUE(m2.IsEqualTo(m1));
-	m1.SetSlice(1,2); m1.CopyToSparse(m2); m2.ResizeBack();
+	m1.SetSlice(1,2); m1.CopyToSparse(m2);
+	ASSERT_FALSE(m2.IsSlice());
 	ASSERT_TRUE(m2.IsEqualTo(m1));
 
 	m1.ResizeBack(); m1.CopyToBlock(m2);
 	ASSERT_TRUE(m2.GetFormat()== (rmf ? matrixFormatSparseBSR : matrixFormatSparseBSC));
 	ASSERT_TRUE(m2.IsEqualTo(m1));
-	m1.SetSlice(1,2); m1.CopyToSparse(m2); m2.ResizeBack();
+	m1.SetSlice(1,2); m1.CopyToSparse(m2);
+	ASSERT_FALSE(m2.IsSlice());
 	ASSERT_TRUE(m2.IsEqualTo(m1));
-
-	//cout << endl << m1.GetInfo() << endl; m1.ViewData(cout);
-	//cout << endl << m2.GetInfo() << endl; m2.ViewIds(cout);
-	//cout << endl; m2.ViewData(cout);
 }
 
-TEST_F(BaseMatrixTest, CopyToDenseSparseBlock)
+TEST_F(BaseMatrixTests, CopyToDenseSparseBlock)
 {
 	TestCopyTo(matrixFormatDenseCol);
 	TestCopyTo(matrixFormatDenseRow);
@@ -382,7 +381,7 @@ static void TestMakeFullBlock(MatrixFormat mft)
 	ASSERT_TRUE(m2.IsEqualTo(m1));
 }
 
-TEST_F(BaseMatrixTest, MakeFullBlock)
+TEST_F(BaseMatrixTests, MakeFullBlock)
 {
 	TestMakeFullBlock(matrixFormatDenseCol);
 	TestMakeFullBlock(matrixFormatDenseRow);
@@ -467,7 +466,7 @@ static void TestGetPutSparseData(MatrixFormat mft)
 	ASSERT_TRUE(m2.IsEqualTo(m1));
 }
 
-TEST_F(BaseMatrixTest, GetPutSparseData)
+TEST_F(BaseMatrixTests, GetPutSparseData)
 {
 	TestGetPutSparseData(matrixFormatDenseCol);
 	TestGetPutSparseData(matrixFormatDenseRow);
@@ -475,42 +474,6 @@ TEST_F(BaseMatrixTest, GetPutSparseData)
 	TestGetPutSparseData(matrixFormatSparseCSR);
 	TestGetPutSparseData(matrixFormatSparseBSC);
 	TestGetPutSparseData(matrixFormatSparseBSR);
-}
-
-static void Random(SparseData<float>& v, size_t rows, size_t cols, size_t n=0)
-{
-	v.clear();
-	if (n==0)
-	{
-		// whole matrix
-		v.reserve(rows*cols);
-		for (size_t j=0; j<cols; ++j)
-		for (size_t i=0; i<rows; ++i)
-			v.push_back(ElemItem<float>(i, j, float(0.01*(rand() % 100))));
-		return;
-	}
-	v.reserve(n<rows*cols ? n : n=rows*cols);
-	while (v.size()<n)
-	{
-		while (v.size()<n)
-		{
-			float val = float(0.01*(rand() % 100)); if (val==0) continue;
-			size_t r = rand() % rows, c = rand() % cols;
-			v.push_back(ElemItem<float>(r,c,val));
-		}
-		v.SortByCols();
-		ElemItem<float> pi(-1,-1);
-		for (SparseData<float>::iterator i=v.begin(); i!=v.end(); )
-			if ((*i).row==pi.row && (*i).col==pi.col) i = v.erase(i);
-			else pi = *i++;
-	}
-}
-
-static void Random(BaseMatrix<float>& m, size_t n=0)
-{
-	SparseData<float> spd;
-	Random(spd, m.GetNumRows(), m.GetNumCols(), n);
-	m.PutSparseData(spd);
 }
 
 static void TestTransposeTo(MatrixFormat mft)
@@ -530,12 +493,11 @@ static void TestTransposeTo(MatrixFormat mft)
 
 	BaseMatrix<float> m3;
 	m1.Resize(100,1000); Random(m1,5000);
-	m1.TransposeTo(m2);
-	m2.TransposeTo(m3);
+	m1.TransposeTo(m2).TransposeTo(m3);
 	ASSERT_TRUE(m3.IsEqualTo(m1));
 }
 
-TEST_F(BaseMatrixTest, TransposeTo)
+TEST_F(BaseMatrixTests, TransposeTo)
 {
 	TestTransposeTo(matrixFormatDenseCol);
 	TestTransposeTo(matrixFormatDenseRow);
@@ -577,7 +539,7 @@ static void TestReshape(MatrixFormat mft)
 	}
 }
 
-TEST_F(BaseMatrixTest, Reshape)
+TEST_F(BaseMatrixTests, Reshape)
 {
 	TestReshape(matrixFormatDenseCol);
 	TestReshape(matrixFormatDenseRow);

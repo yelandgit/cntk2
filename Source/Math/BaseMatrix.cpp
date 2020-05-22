@@ -31,8 +31,8 @@ void BaseMatrix<ElemType>::Init(MatrixFormat fmt, device_t dev)
 template<class ElemType>
 void BaseMatrix<ElemType>::Assign(size_t rows, size_t cols, ElemType* p, int flags)
 {
-	m_sob->Create(m_numRows=rows, m_numCols=cols, p, flags);
 	m_sliceOffset = 0;
+	m_sob->Create(m_numRows=rows, m_numCols=cols, p, flags);
 }
 
 template<class ElemType>
@@ -70,7 +70,7 @@ void BaseMatrix<ElemType>::SetSlice(size_t start, size_t len)
 	if (mft & matrixFormatRowMajor)
 	{
 		if (start+len > m_numRows)
-			RuntimeError("SetSlice (%lu..%lu) is out of range=%lu", start, start+len-1, m_numRows);
+			RuntimeError("SetSlice (%lu+%lu) is out of range (%lu)", start, len, m_numRows);
 		if (mft & matrixFormatSparse) m_sliceOffset += start;
 		else m_sliceOffset += start * m_numCols;
 		m_numRows = len;
@@ -78,7 +78,7 @@ void BaseMatrix<ElemType>::SetSlice(size_t start, size_t len)
 	else
 	{
 		if (start+len > m_numCols)
-			RuntimeError("SetSlice (%lu..%lu) is out of range=%lu", start, start+len-1, m_numCols);
+			RuntimeError("SetSlice (%lu+%lu) is out of range (%lu)", start, len, m_numCols);
 		if (mft & matrixFormatSparse) m_sliceOffset += start;
 		else m_sliceOffset += start * m_numRows;
 		m_numCols = len;
@@ -89,8 +89,8 @@ template<class ElemType>
 void BaseMatrix<ElemType>::SetColumnSlice(size_t start, size_t len)
 {
 	MatrixFormat mft = m_sob->GetFormat();
-	if (mft & matrixFormatRowMajor) RuntimeError("Coulmn slice is not supported for row major matrix");
-	if (start+len > m_numCols) RuntimeError("Column slice (%lu..%lu) is out of range=%lu", start, start+len, m_numCols);
+	if (mft & matrixFormatRowMajor) RuntimeError("Column slice is not supported for row major matrix");
+	if (start+len > m_numCols) RuntimeError("Column slice (%lu+%lu) is out of range (%lu_", start, len, m_numCols);
 	if (mft & matrixFormatSparse) m_sliceOffset += start;
 	else m_sliceOffset += start * m_numRows;
 	m_numCols = len;
@@ -168,7 +168,7 @@ bool BaseMatrix<ElemType>::IsEqualTo(const BaseMatrix<ElemType>& m, ElemType thr
 		cout << "*** different item [" << i << "," << j << "] " << x << " / " << y << "  d=" << abs(x-y) << endl;
 		if (++n==10) return false;
 	}
-	return true;
+	return (n==0);
 }
 
 template<class ElemType>

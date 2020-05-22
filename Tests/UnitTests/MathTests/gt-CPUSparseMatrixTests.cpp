@@ -24,50 +24,112 @@ public:
 	static void TearDownTestCase() {}
 };
 
-///TEST_F(CPUSparseMatrixTests, ColumnSlice)
-///{
-///	const size_t m = 100;
-///	const size_t n = 50;
-///	DenseMatrix dm0(m, n);
-///	SparseMatrix sm0(matrixFormatSparseCSC, m, n, 0);
-///
-///	RandomSeedFixture rsf;
-///	dm0.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
-///	foreach_coord (row, col, dm0)
-///	{
-///		sm0.SetValue(row, col, dm0(row, col));
-///	}
-///
-///	const size_t start = 10;
-///	const size_t numCols = 20;
-///	DenseMatrix dm1 = dm0.GetColumnSlice(start, numCols);
-///	DenseMatrix dm2 = sm0.GetColumnSlice(start, numCols).CopyColumnSliceToDense(0, numCols);
-///
-///	ASSERT_TRUE(dm1.IsEqualTo(dm2, c_epsilonFloatE4));
-///}
-///
-///TEST_F(CPUSparseMatrixTests, CopyColumnSliceToDense)
-///{
-///	const size_t m = 100;
-///	const size_t n = 50;
-///	DenseMatrix dm0(m, n);
-///	SparseMatrix sm0(matrixFormatSparseCSC, m, n, 0);
-///
-///	RandomSeedFixture rsf;
-///	dm0.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
-///	foreach_coord (row, col, dm0)
-///	{
-///		sm0.SetValue(row, col, dm0(row, col));
-///	}
-///
-///	const size_t start = 10;
-///	const size_t numCols = 20;
-///	DenseMatrix dm1 = dm0.GetColumnSlice(start, numCols);
-///	DenseMatrix dm2 = sm0.CopyColumnSliceToDense(start, numCols);
-///
-///	ASSERT_TRUE(dm1.IsEqualTo(dm2, c_epsilonFloatE4));
-///}
-///
+static void TestSetDiagonalValue(MatrixFormat mft)
+{
+	SparseMatrix m1(mft);
+	m1.Resize(4, 3);
+	m1.PutItem(0, 0, 10);
+	m1.PutItem(1, 1, 10);
+	m1.PutItem(2, 2, 10);
+
+	SparseMatrix m2(mft);
+	m2.Resize(4, 3);
+	m2.SetDiagonalValue(10);
+	ASSERT_TRUE(m2.IsEqualTo(m1));
+
+	DenseMatrix dm(1, 3, mft);
+	dm.PutItem(0, 0, 10);
+	dm.PutItem(0, 1, 10);
+	dm.PutItem(0, 2, 10);
+
+	SparseMatrix m3(mft);
+	m3.Resize(4, 3);
+	m3.SetDiagonalValue(dm);
+	ASSERT_TRUE(m3.IsEqualTo(m1));
+}
+
+TEST_F(CPUSparseMatrixTests, SetValues)
+{
+	std::array<float, 12> array = { 0, 2, 0, 4, 0, 6, 0, 8, 0, 10, 0, 12 };
+
+	SparseMatrix m1(matrixFormatSparseCSC);
+	m1.Assign(3, 4, array.data());
+	SparseMatrix m2; m2.SetValue(m1);
+	ASSERT_EQ(m2.GetFormat(), matrixFormatSparseCSC);
+	ASSERT_TRUE(m2.IsEqualTo(m1));
+
+	m1.Assign(3, 4, array.data(), matrixFormatRowMajor);
+	ASSERT_EQ(m1.GetFormat(), matrixFormatSparseCSR);
+	ASSERT_EQ(m1.GetNumRows(), 3);
+	ASSERT_EQ(m1.GetNumCols(), 4);
+
+	m2.SetValue(m1);
+	ASSERT_EQ(m2.GetFormat(), matrixFormatSparseCSC);
+	ASSERT_EQ(m2.GetNumRows(), 3);
+	ASSERT_EQ(m2.GetNumCols(), 4);
+	ASSERT_EQ(m2(0,0), 0);
+	ASSERT_EQ(m2(1,0), 0);
+	ASSERT_EQ(m2(2,0), 0);
+	ASSERT_EQ(m2(0,1), 2);
+	ASSERT_EQ(m2(1,1), 6);
+	ASSERT_EQ(m2(2,1), 10);
+	ASSERT_EQ(m2(0,2), 0);
+	ASSERT_EQ(m2(1,2), 0);
+	ASSERT_EQ(m2(2,2), 0);
+	ASSERT_EQ(m2(0,3), 4);
+	ASSERT_EQ(m2(1,3), 8);
+	ASSERT_EQ(m2(2,3), 12);
+
+	TestSetDiagonalValue(matrixFormatSparseCSC);
+	TestSetDiagonalValue(matrixFormatSparseBSC);
+}
+
+TEST_F(CPUSparseMatrixTests, ColumnSlice)
+{
+	size_t m = 100;
+	size_t n = 50;
+
+	DenseMatrix dm0(m, n);
+	SparseMatrix sm0(m, n, matrixFormatSparseCSC);
+	sm0.Allocate(m*n);
+
+	RandomSeedFixture rsf;
+	dm0.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
+	foreach_coord (row, col, dm0)
+		sm0.PutItem(row, col, dm0(row,col));
+
+	const size_t start = 10;
+	const size_t numCols = 20;
+	DenseMatrix dm1 = dm0.GetColumnSlice(start, numCols);
+	DenseMatrix dm2 = sm0.GetColumnSlice(start, numCols).CopyToDense();
+	ASSERT_TRUE(dm1.IsEqualTo(dm2));
+}
+
+TEST_F(CPUSparseMatrixTests, MakeFullBlock)
+{
+	SparseMatrix sm(4,6); Random(sm,12);
+	DenseMatrix dm(sm.CopyToDense(),true);
+	sm.ConvertToFullBlock();
+	ASSERT_EQ(sm.GetFormat(), matrixFormatSparseBSC);
+	ASSERT_TRUE(sm.IsEqualTo(dm));
+}
+
+TEST_F(CPUSparseMatrixTests, Diagonal)
+{
+	SparseMatrix sm1(4,6); Random(sm1,18);
+	DenseMatrix dm1 = sm1.CopyToDense();
+	DenseMatrix dm2 = dm1.Diagonal();
+	DenseMatrix dm3 = sm1.Diagonal();
+	ASSERT_TRUE(dm3.IsEqualTo(dm2));
+
+	sm1.Init(matrixFormatSparseBSC);
+	sm1.Resize(4,6); Random(sm1,18);
+	dm1 = sm1.CopyToDense();
+	dm2 = dm1.Diagonal();
+	dm3 = sm1.Diagonal();
+	ASSERT_TRUE(dm3.IsEqualTo(dm2));
+}
+
 ///TEST_F(CPUSparseMatrixTests, MultiplyAndAdd)
 ///{
 ///	const size_t m = 100;

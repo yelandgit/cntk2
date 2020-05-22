@@ -6,8 +6,7 @@
 #include "../Common/Basics.h"
 #include "../Common/File.h"
 #include "CPUMatrix.h"
-//#include "CPUSparseMatrix.h"
-//#include "CPUSparseMatrix2.h"
+#include "CPUSparseMatrix.h"
 #include "TensorOps.h"
 #include <assert.h>
 //#include <stdexcept>
@@ -62,27 +61,6 @@
 
 namespace Microsoft { namespace MSR { namespace CNTK {
 
-// helper to allocate an array of ElemType
-// Use this instead of new[] to get NaN initialization for debugging.
-//template <class ElemType>
-//static ElemType* NewArray(size_t n)
-//{
-//	// We need to allocate possibly one more element for the following reason.
-//	// At some point we might want to fill a buffer with the result of a random
-//	// number generator. The RNG is oblivious to whether the buffer is on the
-//	// CPU or GPU but it needs to keep an accurate tally of how many numbers it
-//	// has generated. The trouble stems from the fact that generating an odd
-//	// number gaussians on the GPU is not supported so we must always
-//	// generate an even number. So since we wouldn't know how to update the tally
-//	// we are making this allocate one more element in the worst case.
-//	ElemType* p = new ElemType[SizeMultipleOf(n, 2)]();
-//#if 0 // _DEBUG
-//		ElemType nan = Matrix<ElemType>::MakeNan(__LINE__);
-//		for (size_t i = 0; i < n; i++) *p++ = nan;
-//#endif
-//	return p;
-//}
-
 //==============================================================================
 //			CPUMatrix<ElemType>
 //==============================================================================
@@ -102,32 +80,25 @@ CPUMatrix<ElemType> CPUMatrix<ElemType>::GetColumnSlice(size_t start, size_t col
 	return slice;
 }
 
-// set this(:, 0:numCols-1) = fromMatrix(:, startColumn : startColumn+numCols-1)
-// TODO: why not say *this = GetColumnSlice()?
 template <class ElemType>
-CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t cols)
+CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t len)
 {
-	if (start + cols > fromMatrix.m_numCols)
-		InvalidArgument("The slice (%d+%d) is out of range of the source matrix (%d).", (int)start, (int)cols, (int)fromMatrix.m_numCols);
-
-	Assign(fromMatrix, true);
-	SetColumnSlice(start,cols);
+	CPUMatrix<ElemType> c(fromMatrix, true);
+	c.SetSlice(start, len); c.CopyToDense(*this);
 	return *this;
 }
 
-// set this(: , startColumn:startColumn+numCols-1)= fromMatrix;
 template <class ElemType>
-CPUMatrix<ElemType>& CPUMatrix<ElemType>::PutColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t cols)
+CPUMatrix<ElemType>& CPUMatrix<ElemType>::PutColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t len)
 {
-	if (start + cols > m_numCols)
-		LogicError("The slice is out of range of the destination matrix");
-	if (cols > fromMatrix.GetNumCols())
-		InvalidArgument("The slice (%d) is out of range of the source matrix (%d).", (int)cols, (int)fromMatrix.GetNumCols());
+	if (len > fromMatrix.GetNumCols())
+		InvalidArgument("The slice (%lu) is out of source range %lu)", len, fromMatrix.GetNumCols());
+	if (start + len > m_numCols)
+		LogicError("The slice (%lu+%lu) is out of destination range (%lu)", start, len, m_numCols);
 	if (m_numRows != fromMatrix.m_numRows)
-		LogicError("The number of rows in source and destination matrices do not match");
+		LogicError("Different number of rows = %lu / %lu", fromMatrix.m_numRows, m_numRows);
 
-	memcpy(GetData() + start*m_numRows, fromMatrix.GetData(), cols*m_numRows*sizeof(ElemType));
-
+	memcpy(GetData() + start*m_numRows, fromMatrix.GetData(), len*m_numRows*sizeof(ElemType));
 	return *this;
 }
 
@@ -307,24 +278,16 @@ CPUMatrix<ElemType>& CPUMatrix<ElemType>::AddWithRowSliceValuesOf(const CPUMatri
 	return *this;
 }
 
-///template <class ElemType>
-///CPUMatrix<ElemType> CPUMatrix<ElemType>::Diagonal() const
-///{
-///	if (m_numRows != m_numCols)
-///		LogicError("Diagonal can be called only for square matrix. (rows=%d, cols=%d)", (int)m_numRows, (int)m_numCols);
-
-///	CPUMatrix<ElemType> diag(1, m_numCols);
-
-///	auto& us = *this;
-
-///#pragma omp parallel for
-///	for (long i = 0; i < m_numRows; i++)
-///	{
-///		diag(0, (size_t) i) = us(i, i);
-///	}
-
-///	return diag;
-///}
+template <class ElemType>
+CPUMatrix<ElemType> CPUMatrix<ElemType>::Diagonal() const
+{
+	size_t n = GetDiagSize();
+	CPUMatrix<ElemType> diag(1,n);
+	const ElemType* pi = GetData();
+	ElemType* po = diag.GetData();
+	for (size_t j=0; j<n; ++j) { *po++ = *pi; pi += m_numRows + 1; }
+	return diag;
+}
 
 ///template <class ElemType>
 ///void CPUMatrix<ElemType>::MinusOneAt(CPUMatrix<ElemType>& c, size_t position)
@@ -446,7 +409,7 @@ template <class ElemType>
 CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignTransposeOf(const CPUMatrix<ElemType>& a)
 {
 	if (&a != this) a.TransposeTo(*this);
-	else { CPUMatrix<ElemType> b; TransposeTo(b); Assign(b,true); }
+	else Assign(TransposeTo(CPUMatrix<ElemType>()),true);
 	return *this;
 }
 

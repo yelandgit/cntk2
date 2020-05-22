@@ -21,7 +21,7 @@
 #pragma warning(disable:4996)
 
 #include <array>
-#include "constants.h"
+#include "common.h"
 #include "fixtures.h"
 
 #include <iostream>

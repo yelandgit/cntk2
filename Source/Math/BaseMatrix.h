@@ -447,8 +447,8 @@ public:
 
 	void SetZeros();
 	bool Reshape(size_t rows, size_t cols);
-	void Transpose() { size_t n = m_numRows; m_numRows = m_numCols; m_numCols = n; m_format = MatrixFormat(m_format ^ matrixFormatRowMajor); }
-	void TransposeFrom(const BaseMatrixStorage<ElemType>& bms);
+	void TransposeFrom(const BaseMatrixStorage<ElemType>& bms, bool hdr=false);
+	void TransposeHeader() { size_t n = m_numRows; m_numRows = m_numCols; m_numCols = n; m_format = MatrixFormat(m_format ^ matrixFormatRowMajor); }
 
 	int  Compare(const BaseMatrixStorage<ElemType>& bms) const;
 
@@ -459,7 +459,7 @@ public:
 	index_t* GetCompPos() const { return m_compPos; }
 	index_t* GetCompId() const { return m_compId; }
 
-	//void SetBlockCount(size_t n) { m_blockCnt = n; }
+	void SetBlockCount(size_t n) { m_blockCnt = n; }
 	//void SetCompPosSize(size_t n) { m_compSize = n; }
 	//void SetBlockIdShift(size_t n) { m_blockShift = n; }
 
@@ -993,7 +993,7 @@ void BaseMatrixStorage<ElemType>::GetBlockId(vector<size_t>& v) const
 }
 
 template<class ElemType>
-void BaseMatrixStorage<ElemType>::TransposeFrom(const BaseMatrixStorage<ElemType>& bms)
+void BaseMatrixStorage<ElemType>::TransposeFrom(const BaseMatrixStorage<ElemType>& bms, bool hdr)
 {
 	if (bms.IsDenseFormat())
 	{
@@ -1021,7 +1021,7 @@ void BaseMatrixStorage<ElemType>::TransposeFrom(const BaseMatrixStorage<ElemType
 			if (IsRowMajor()) spd.SortByRows(); else spd.SortByCols();
 			PutSparseData(spd);
 		}
-		Transpose();
+		TransposeHeader();
 	}
 	else
 	{
@@ -1041,6 +1041,7 @@ void BaseMatrixStorage<ElemType>::TransposeFrom(const BaseMatrixStorage<ElemType
 			else for (size_t i=0; i<nr; ++i) { if (*p++) PutItem(j,i,p[-1]); }
 		}
 	}
+	if (hdr) TransposeHeader();
 }
 
 template<class ElemType>
@@ -1531,7 +1532,7 @@ public:
 	void GetSparseData(SparseData<ElemType>& spd) const;
 	void PutSparseData(const SparseData<ElemType>& spd);
 
-	void TransposeTo(BaseMatrix<ElemType>& mat) const { mat.m_sob->TransposeFrom(*m_sob.get()); mat.ResizeBack(); }
+	BaseMatrix<ElemType>& TransposeTo(BaseMatrix<ElemType>& mat, bool hdr=false) const { mat.m_sob->TransposeFrom(*m_sob.get(),hdr); mat.ResizeBack(); return mat; }
 
 	void CopyToDense(BaseMatrix<ElemType>& mat) const;
 	void CopyToSparse(BaseMatrix<ElemType>& mat) const;
@@ -1544,9 +1545,9 @@ public:
 	// sparse format
 	size_t GetBlockCount() const { return m_sob->GetBlockCount(); }
 
-	//index_t* GetPrimePos() const { return m_sob->GetCompPos() + m_sliceOffset; }
 	//index_t* GetCompPos() const { return m_sob->GetCompPos(); }
-	//index_t* GetCompId() const { return m_sob->GetCompId(); }
+	index_t* GetPrimePos() const { return m_sob->GetCompPos() + m_sliceOffset; }
+	index_t* GetCompId() const { return m_sob->GetCompId(); }
 
 	//index_t* GetBlockPos() const { return m_sob->GetBlockPos() + m_sliceOffset; }
 	//ElemType* GetNzValues() { return m_sob->GetNzValues(); }

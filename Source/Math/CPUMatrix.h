@@ -48,15 +48,22 @@ public:
 	CPUMatrix<ElemType>& operator=(CPUMatrix<ElemType>&& mat) { if (&mat!=this) { Assign(mat, true); mat.Release(); } return *this; }
 
 public:
-	CPUMatrix<ElemType>  GetColumnSlice(size_t start, size_t cols) const;
-	CPUMatrix<ElemType>& AssignColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t cols);
-	CPUMatrix<ElemType>& PutColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t cols);
+	void SetValue(ElemType v);
+	void SetValue(const CPUMatrix<ElemType>& mat);
+	//void SetValue(const GPUMatrix<ElemType>& mat);
+	//void SetValue(const CPUSparseMatrix<ElemType>& mat);
+	//void SetValue(const GPUSparseMatrix<ElemType>& mat);
+	void SetValue(size_t rows, size_t cols, ElemType* p, int flags = matrixFlagNone);
 
-//	void CopyColumnsStrided(const CPUMatrix<ElemType>& fromMatrix, size_t numCols, size_t srcNumColsStride, size_t destNumColsStride);
-//
-//	CPUMatrix<ElemType> Diagonal() const;
+	CPUMatrix<ElemType>  GetColumnSlice(size_t start, size_t len) const;
+	CPUMatrix<ElemType>& AssignColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t len);
+	CPUMatrix<ElemType>& PutColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t len);
+
+	CPUMatrix<ElemType> Diagonal() const;
 //	CPUSparseMatrix<ElemType> CopyToSparse() const { CPUSparseMatrix<ElemType> sm; Base::CopyToSparse(sm); return sm; }
 //	CPUSparseMatrix<ElemType> CopyToBlock() const { CPUSparseMatrix<ElemType> sm; Base::CopyToBlock(sm); return sm; }
+
+//	void CopyColumnsStrided(const CPUMatrix<ElemType>& fromMatrix, size_t numCols, size_t srcNumColsStride, size_t destNumColsStride);
 
 	ElemType Adagrad(CPUMatrix<ElemType>& gradients, bool needAveMultiplier);
 	void FSAdagrad(CPUMatrix<ElemType>& gradients, CPUMatrix<ElemType>& functionValues, ElemType learnRatePerSample, 
@@ -87,13 +94,6 @@ public:
 	inline ElemType& operator()(size_t row, size_t col) { return GetData()[ItemPos(row, col)]; }
 	inline const ElemType& operator()(size_t row, size_t col) const { return GetData()[ItemPos(row, col)]; }
 	inline ElemType GetFirstItem() const { return GetData()[0]; }
-
-	void SetValue(ElemType v);
-	void SetValue(const CPUMatrix<ElemType>& mat);
-	//void SetValue(const GPUMatrix<ElemType>& mat);
-	//void SetValue(const CPUSparseMatrix<ElemType>& mat);
-	//void SetValue(const GPUSparseMatrix<ElemType>& mat);
-	void SetValue(size_t rows, size_t cols, ElemType* p, int flags = matrixFlagNone);
 
 //	void MaskColumnsValue(const CPUMatrix<char>& columnsMask, ElemType val, size_t numColsPerMaskEntry);
 //

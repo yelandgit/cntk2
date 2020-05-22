@@ -655,14 +655,14 @@ TEST_F(CPUMatrixTests, SetValues)
 
 	CPUDoubleMatrix m1(3, 3);
 	m1.SetDiagonalValue(10);
-	ASSERT_TRUE(m1.IsEqualTo(m0, c_epsilonFloatE4));
+	ASSERT_TRUE(m1.IsEqualTo(m0));
 
 	CPUDoubleMatrix m2(3, 1);
 	m2(0, 0) = 10;
 	m2(1, 0) = 10;
 	m2(2, 0) = 10;
 	m1.SetDiagonalValue(m2);
-	ASSERT_TRUE(m1.IsEqualTo(m0, c_epsilonFloatE4));
+	ASSERT_TRUE(m1.IsEqualTo(m0));
 
 	m1.SetUniformRandomValue(-0.01, 0.01, rsf.IncrementCounter());
 	foreach_coord (i, j, m1) { ASSERT_TRUE(m1(i, j) >= -0.01 && m1(i, j) < 0.01); }
@@ -714,8 +714,15 @@ TEST_F(CPUMatrixTests, ColumnSlice)
 	m1(1, 0) = 4;
 	m1(1, 1) = 5;
 
-	CPUDoubleMatrix m2 = m0.GetColumnSlice(0, 2);
-	ASSERT_TRUE(m2.IsEqualTo(m1, c_epsilonFloatE4));
+	CPUDoubleMatrix m2;
+	m2 = m0.GetColumnSlice(0, 2);
+	ASSERT_TRUE(m2.IsEqualTo(m1));
+	ASSERT_TRUE(m2.IsSlice());
+
+	CPUDoubleMatrix m3;
+	m3.AssignColumnSlice(m0, 0, 2);
+	ASSERT_TRUE(m3.IsEqualTo(m1));
+	ASSERT_FALSE(m3.IsSlice());
 
 	m1(0, 0) = 2;
 	m1(0, 1) = 3;
@@ -723,7 +730,9 @@ TEST_F(CPUMatrixTests, ColumnSlice)
 	m1(1, 1) = 6;
 
 	m2 = m0.GetColumnSlice(1, 2);
-	ASSERT_TRUE(m2.IsEqualTo(m1, c_epsilonFloatE4));
+	ASSERT_TRUE(m2.IsEqualTo(m1));
+	m3.AssignColumnSlice(m0, 1, 2);
+	ASSERT_TRUE(m3.IsEqualTo(m1));
 
 	// TODO: this fails due to access violation (at least on desktop machine of pkranen)
 	// size_t k = 100, n = 20, m = 50;

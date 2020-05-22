@@ -5,18 +5,35 @@
 //
 #pragma once
 
-#include <cstdlib>
-//#include "Math/Matrix.h"
-//#include "Math/half.hpp"
+//#include <cstdlib>
+#include "Math/BaseMatrix.h"
+
+using namespace Microsoft::MSR::CNTK;
+
+extern const int c_deviceIdZero;
+
+extern const float  c_epsilonFloatE4;
+extern const float  c_epsilonFloat3E4;
+extern const float  c_epsilonFloat5E4;
+extern const float  c_epsilonFloatE5;
+extern const float  c_epsilonFloatE3;
+extern const float  c_epsilonFloatE2;
+extern const float  c_epsilonFloatE1;
+extern const double c_epsilonDoubleE11;
+
+
+void Random(SparseData<float>& v, size_t rows, size_t cols, size_t n=0);
+void Random(BaseMatrix<float>& m, size_t n=0);
+
 
 namespace Microsoft { namespace MSR { namespace CNTK { namespace Test {
 
-template <typename T>
-struct Err
-{
-    static const T Rel;
-    static const T Abs;
-};
+//template <typename T>
+//struct Err
+//{
+//    static const T Rel;
+//    static const T Abs;
+//};
 
 //bool AreEqual(float a, float b, float maxRelError, float maxAbsError);
 //bool AreEqual(double a, double b, double maxRelError, double maxAbsError);

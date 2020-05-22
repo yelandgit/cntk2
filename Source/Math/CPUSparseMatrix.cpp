@@ -34,82 +34,174 @@
 
 namespace Microsoft { namespace MSR { namespace CNTK {
 
-///template <class ElemType>
-///CPUSparseMatrix<ElemType>::CPUSparseMatrix(MatrixFormat mft, size_t rows, size_t cols, size_t n) : Base(mft, CPUDEVICE)
-///{
-///	Resize(rows, cols);
-///	if (n) Allocate(n);
-///}
+template <class ElemType>
+void CPUSparseMatrix<ElemType>::SetValue(const CPUSparseMatrix<ElemType>& mat)
+{
+	if (mat.IsColMajor()) Assign(mat);
+	else Assign(mat.TransposeTo(CPUSparseMatrix(),true),true);
+}
 
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::SetDiagonalValue(ElemType v)
-///{
-///	Reset();
-///	MatrixFormat mft = GetFormat();
-///	size_t nc = (mft & matrixFormatRowMajor) ? m_numRows : m_numCols;
-///	size_t nr = (mft & matrixFormatRowMajor) ? m_numCols : m_numRows;
-///	size_t n = GetDiagSize();
-///
-///	if (mft & matrixFormatBlock)
-///	{
-///		// block
-///		Allocate(n*nr);
-///		ElemType* p = Buffer(); memset(p, 0, n*nr*sizeof(ElemType));
-///		size_t* blockPos = GetBlockPos();
-///		for (size_t j=0; j<n; ++j) { blockPos[j] = j; p[j] = v; p += nr; }
-///		SetBlockCount(n);
-///	}
-///	else
-///	{
-///		// sparse
-///		index_t* compPos = GetCompPos();
-///		index_t* compId = GetCompId();
-///		ElemType* p = Buffer();
-///		for (size_t j=0; j<n; ++j) { compPos[j] = compId[j] = index_t(j); *p++ = v; }
-///		for (size_t j=n; j<=nc; ++j) compPos[j] = index_t(n);
-///	}
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
-///{
-///	if (v.GetNumRows() != 1 && v.GetNumCols() != 1)
-///		LogicError("SetDiagonalValue: input vector must be a vector");
-///
-///	size_t dsize = v.GetNumElements();
-///	if (dsize == 1) { SetDiagonalValue(v(0,0)); return; }
-///	if (dsize != GetDiagSize())
-///		LogicError("SetDiagonalValue: input vector's dimension does not agree with [this]");
-///
-///	Reset();
-///	MatrixFormat mft = GetFormat();
-///	if (mft & matrixFormatBlock)
-///	{
-///		// block
-///		size_t nr = (mft & matrixFormatRowMajor) ? m_numCols : m_numRows;
-///		Allocate(dsize*nr);
-///		const ElemType* src = v.Data();
-///		ElemType* dst = Data();
-///
-///		size_t* blockPos = GetBlockPos();
-///		for (size_t j=0; j<dsize; ++j) { blockPos[j] = j; dst[j] = *src++; dst += nr; }
-///		SetBlockCount(dsize);
-///	}
-///	else
-///	{
-///		// sparse
-///		Allocate(dsize);
-///		const ElemType* src = v.Data();
-///		ElemType* dst = Data();
-///
-///		index_t* compPos = GetCompPos();
-///		index_t* compId = GetCompId();
-///		size_t nc = (mft & matrixFormatRowMajor) ? m_numRows : m_numCols;
-///		for (size_t j=0; j<dsize; ++j) { compPos[j] = compId[j] = (index_t)j; *dst++ = *src++; }
-///		for (size_t j=dsize; j<=nc; ++j) compPos[j] = (index_t)dsize;
-///	}
-///}
-///
+template <class ElemType>
+CPUSparseMatrix<ElemType> CPUSparseMatrix<ElemType>::GetColumnSlice(size_t start, size_t len) const
+{
+	CPUSparseMatrix<ElemType> slice(*this, true);
+	slice.SetColumnSlice(start, len);
+	return slice;
+}
+
+template <class ElemType>
+CPUMatrix<ElemType> CPUSparseMatrix<ElemType>::Diagonal() const
+{
+	size_t n = GetDiagSize();
+	CPUMatrix<ElemType> diag(1,n);
+	if (n)
+	{
+		const index_t* compPos = GetPrimePos();
+		const ElemType* pi = GetBuffer();
+		ElemType* po = diag.GetData();
+
+		if (IsSparseFormat())
+		{
+			const index_t* compId = GetCompId();
+			for (size_t j=0; j<n; ++j,++po)
+			{
+				size_t ns = compPos[j], ne = compPos[j+1];
+				for (size_t k=ns; k<ne; ++k)
+					if (compId[k]==j) { *po = pi[k]; break; }
+			}
+		}
+		else for (size_t j=0; j<n; ++j,++po)
+		{
+			size_t k = compPos[j];
+			if (k!=string::npos) *po = pi[k*m_numRows + j];
+		}
+	}
+	return diag;
+}
+
+template <class ElemType>
+void CPUSparseMatrix<ElemType>::SetDiagonalValue(ElemType v)
+{
+	Reset();
+	size_t dsize = GetDiagSize(); if (dsize==0) return;
+
+	MatrixFormat mft = GetFormat();
+	size_t nc = (mft & matrixFormatRowMajor) ? m_numRows : m_numCols;
+	size_t nr = (mft & matrixFormatRowMajor) ? m_numCols : m_numRows;
+
+	if (mft & matrixFormatBlock)
+	{
+		Allocate(dsize*nr);
+		index_t* blockPos = GetPrimePos();
+		ElemType* p = GetBuffer(); memset(p, 0, dsize*nr*sizeof(ElemType));
+		for (size_t j=0; j<dsize; ++j) { blockPos[j] = (index_t)j; p[j] = v; p += nr; }
+		m_sob->SetBlockCount(dsize);
+	}
+	else
+	{
+		Allocate(max(nr,nc));
+		index_t* compPos = GetPrimePos();
+		index_t* compId = GetCompId();
+		ElemType* p = GetBuffer();
+		for (size_t j=0; j<dsize; ++j) { compPos[j] = compId[j] = (index_t)j; *p++ = v; }
+		for (size_t j=dsize; j<=nc; ++j) compPos[j] = (index_t)dsize;
+	}
+}
+
+template <class ElemType>
+void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
+{
+	if (v.GetNumRows()!=1 && v.GetNumCols()!=1)
+		LogicError("SetDiagonalValue: Input vector (%lu,%lu) is not vector", v.GetNumRows(), v.GetNumCols());
+
+	size_t dsize = v.GetNumElements();
+	if (GetDiagSize()!=dsize)
+		LogicError("SetDiagonalValue: Different diagonal size=%lu / %lu", GetDiagSize(), dsize);
+
+	if (dsize == 0) return;
+	if (dsize == 1) { SetDiagonalValue(*v.GetData()); return; }
+
+	Reset();
+	MatrixFormat mft = GetFormat();
+	if (mft & matrixFormatBlock)
+	{
+		size_t nr = (mft & matrixFormatRowMajor) ? m_numCols : m_numRows;
+		Allocate(dsize*nr);
+		const ElemType* src = v.GetData();
+		ElemType* dst = GetData();
+
+		index_t* blockPos = GetPrimePos();
+		for (size_t j=0; j<dsize; ++j) { blockPos[j] = (index_t)j; dst[j] = *src++; dst += nr; }
+		m_sob->SetBlockCount(dsize);
+	}
+	else
+	{
+		size_t nc = (mft & matrixFormatRowMajor) ? m_numRows : m_numCols;
+		Allocate(dsize);
+		const ElemType* pi = v.GetData();
+		ElemType* po = GetData();
+
+		index_t* compPos = GetPrimePos();
+		index_t* compId = GetCompId();
+		for (size_t j=0; j<dsize; ++j) { compPos[j] = compId[j] = (index_t)j; *po++ = *pi++; }
+		for (size_t j=dsize; j<=nc; ++j) compPos[j] = (index_t)dsize;
+	}
+}
+
+//template <class ElemType>
+//void CPUSparseMatrix<ElemType>::AssignColumnSliceTo(CPUMatrix<ElemType>& slice, size_t start, size_t len) const
+//{
+//	MatrixFormat mft = GetFormat();
+//	if (mft & matrixFormatRowMajor)
+//		RuntimeError("ColumnSlice is not supported for row major matrix");
+//	if (start+len > m_numCols)
+//		InvalidArgument("The slice (%lu+%lu) is out of range of the source matrix (%lu)", start, len, m_numCols);
+//
+//	slice.Resize(m_numRows, len);
+//	ElemType* src = GetBuffer();
+//	ElemType* dst = slice.GetBuffer();
+//	index_t* primePos = GetPrimePos() + start;
+//
+//	if (mft == matrixFormatSparseCSC)
+//	{
+//		index_t* compId = GetCompId();
+////#pragma omp parallel for
+//		for (long j=0; j<len; ++j)
+//		{
+//			long ns = primePos[j], ne = primePos[j+1];
+//			for (long k=ns; k<ne; ++k) dst[compId[k]] = src[k];
+//			dst += m_numRows;
+//		}
+//	}
+//	else if (mft == matrixFormatSparseBSC)
+//	{
+////#pragma omp parallel for
+//		for (long j=0; j<len; ++j)
+//		{
+//			size_t k = compPos[j];
+//			if (k!=string::npos) memcpy(dst, src+k*m_numRows, m_numRows*sizeof(ElemType));
+//			dst += m_numRows;
+//		}
+//	}
+//}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ///template <class ElemType>
 ///CPUSparseMatrix<ElemType>& CPUSparseMatrix<ElemType>::AssignOneHot(const CPUMatrix<ElemType>& a, vector<size_t>& shape, size_t axis)
 ///{
@@ -228,8 +320,8 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///	else if (mft == matrixFormatSparseBSC || mft == matrixFormatSparseBSR)
 ///	{
 ///		size_t n = 0;
-///		size_t* srcPos = mat.GetBlockPos();
-///		size_t* dstPos = GetBlockPos();
+///		index_t* srcPos = mat.GetBlockPos();
+///		index_t* dstPos = GetBlockPos();
 ///		for (size_t j=0; j<nc; ++j) if (srcPos[j]!=string::npos) ++n;
 ///
 ///		Allocate(n==0 ? nr : n*nr); n = 0;
@@ -413,107 +505,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///	}
 ///	fprintf(stderr, "\n");
 ///}
-///
-///template <class ElemType>
-///CPUSparseMatrix<ElemType> CPUSparseMatrix<ElemType>::GetColumnSlice(size_t start, size_t len) const
-///{
-///	if (start + len > m_numCols)
-///		InvalidArgument("The slice (%d+%d) is out of range of the source matrix (%d).", (int)start, (int)len, (int)m_numCols);
-///
-///	if (GetFormat() != matrixFormatSparseCSC && GetFormat() != matrixFormatSparseBSC)
-///		NOT_IMPLEMENTED;
-///
-///	CPUSparseMatrix<ElemType> slice(GetFormat());
-///	slice.Assign(*this, true);
-///	slice.SetSlice(start, len);
-///	return slice;
-///}
-///
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::AssignColumnSliceToDense(CPUMatrix<ElemType>& slice, size_t start, size_t len) const
-///{
-///	if (start+len > m_numCols)
-///		InvalidArgument("The slice (%d+%d) is out of range of the source matrix (%d).", (int)start, (int)len, (int)m_numCols);
-///
-///	slice.Resize(m_numRows, len);
-///	memset(slice.Data(), 0, m_numRows*len*sizeof(ElemType));
-///
-///	MatrixFormat mft = GetFormat();
-///	if (mft == matrixFormatSparseCSC)
-///	{
-///		ElemType* src = Buffer();
-///		ElemType* dst = slice.Buffer();
-///		index_t* primePos = GetPrimePos() + start;
-///		index_t* compId = GetCompId();
-///#pragma omp parallel for
-///		for (long j=0; j<len; ++j)
-///		{
-///			long ns = primePos[j], ne = primePos[j+1];
-///			for (long k=ns; k<ne; ++k) dst[compId[k]] = src[k];
-///			dst += m_numRows;
-///		}
-///	}
-///	else if (mft == matrixFormatSparseBSC)
-///	{
-///		ElemType* src = Buffer();
-///		ElemType* dst = slice.Buffer();
-///		size_t* blockPos = GetBlockPos() + start;
-///#pragma omp parallel for
-///		for (long j=0; j<len; ++j)
-///		{
-///			size_t k = blockPos[j];
-///			if (k!=string::npos) memcpy(dst, src+k*m_numRows, m_numRows*sizeof(ElemType));
-///			dst += m_numRows;
-///		}
-///	}
-///	else NOT_IMPLEMENTED
-///}
-///
-///template <class ElemType>
-///CPUMatrix<ElemType> CPUSparseMatrix<ElemType>::CopyColumnSliceToDense(size_t start, size_t len) const
-///{
-///	CPUMatrix<ElemType> slice(m_numRows, len);
-///	AssignColumnSliceToDense(slice, start, len);
-///	return slice;
-///}
-///
-///template <class ElemType>
-///CPUMatrix<ElemType> CPUSparseMatrix<ElemType>::DiagonalToDense() const
-///{
-///	if (m_numRows != m_numCols)
-///		LogicError("DiagonalToDense can be called only for square matrix");
-///
-///	CPUMatrix<ElemType> diag(1, m_numCols);
-///	MatrixFormat mft = GetFormat();
-///	if ((mft & matrixFormatBlock)==0)
-///	{
-///		// sparse
-///		const index_t* primePos = GetPrimePos();
-///		const index_t* compId = GetCompId();
-///		const ElemType* src = Buffer();
-///		ElemType* dst = diag.Buffer();
-///		for (size_t j=0; j<m_numCols; ++j)
-///		{
-///			size_t ns = primePos[j], ne = primePos[j+1];
-///			for (size_t i=ns; i<ne; ++i)
-///				if (compId[i]==j) { dst[j] = src[i]; break; }
-///		}
-///	}
-///	else
-///	{
-///		// block
-///		const size_t* blockPos = GetBlockPos();
-///		const ElemType* src = Buffer();
-///		ElemType* dst = diag.Buffer();
-///		for (size_t j=0; j<m_numCols; ++j)
-///		{
-///			size_t k = blockPos[j];
-///			if (k!=string::npos) dst[j] = src[k*m_numRows+j];
-///		}
-///	}
-///	return diag;
-///}
-///
+
 ///template <class ElemType>
 ///void CPUSparseMatrix<ElemType>::SetMatrixFromCSCFormat(const index_t* pCol, const index_t* pRow, const ElemType* pVal, const size_t nz, size_t numRows, size_t numCols)
 ///{
@@ -538,7 +530,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///}
 ///
 ///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::SetMatrixFromBSCFormat(const size_t* blockPos, const ElemType* pVal, size_t numBlocks, size_t numRows, size_t numCols)
+///void CPUSparseMatrix<ElemType>::SetMatrixFromBSCFormat(const index_t* blockPos, const ElemType* pVal, size_t numBlocks, size_t numRows, size_t numCols)
 ///{
 ///	if (!OwnBuffer())
 ///		LogicError("Cannot modify since the buffer is managed externally");
@@ -572,7 +564,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///void CPUSparseMatrix<ElemType>::Allocate(size_t numRows, size_t numCols, size_t numNZElemRequested, bool growOnly, bool keepval)
 ///{
 ///	if (m_numRows != numRows || m_numCols != numCols)
-///		LogicError("Error, calling allocate with dimensions (%d, %d), but the matrix has dimension (%d, %d).", (int)numRows, (int)numCols, (int)GetNumRows(), (int)GetNumCols());
+///		LogicError("Error, calling allocate with dimensions (%d, %d), but the matrix has dimension (%d, %d)", (int)numRows, (int)numCols, (int)GetNumRows(), (int)GetNumCols());
 ///
 ///	size_t numNzElem = max(numNZElemRequested, 1);
 ///	size_t newCompIndexSize;
@@ -616,7 +608,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///				GetFormat() == matrixFormatSparseBSR)
 ///		{
 ///			ElemType* blockVal = new ElemType[numNzElem];
-///			size_t* blockIds = new size_t[newCompIndexSize];
+///			index_t* blockIds = new size_t[newCompIndexSize];
 ///
 ///			if (keepval && (NzCount() > numNzElem || GetCompPosSize() > newCompIndexSize))
 ///				LogicError("Resize: To keep values m_nz should <= numNzElem and m_compIndexSize <= newCompIndexSize");
@@ -731,7 +723,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///		size_t n = transposeB ? rhs->GetNumRows() : rhs->GetNumCols();
 ///
 ///		if (k != l)
-///			InvalidArgument("CPUSparseMatrix::MultiplyAndWeightedAdd: The inner dimensions of a (= %lu) and b (= %lu) don't match.", k, l);
+///			InvalidArgument("CPUSparseMatrix::MultiplyAndWeightedAdd: The inner dimensions of a (= %lu) and b (= %lu) don't match", k, l);
 ///
 ///		// Determine the dimension of the outer index of the dense matrix.
 ///		size_t outerDimensionDense;
@@ -868,7 +860,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///
 ///	// A(k,m) * B(m,n) --> C(k,n)
 ///	if (anc != bnr)
-///		InvalidArgument("CPUSparseMatrix::MultiplyAndAdd; The inner dimensions of a (%lu) and b (%lu) don't match.", anc, bnr);
+///		InvalidArgument("CPUSparseMatrix::MultiplyAndAdd; The inner dimensions of a (%lu) and b (%lu) don't match", anc, bnr);
 ///
 ///	if (c.HasExternalBuffer())
 ///		LogicError("CPUSparseMatrix::MultiplyAndAdd; Cannot modify external buffer in matrix");
@@ -883,7 +875,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///	const ElemType* pdb = b.Buffer();
 ///	const index_t* compPos = b.GetPrimePos();
 ///	const index_t* compId = b.GetCompId();
-///	const size_t* blockPos = b.GetBlockPos();
+///	const index_t* blockPos = b.GetBlockPos();
 ///
 ///	anr = a.GetNumRows(); anc = a.GetNumCols();
 ///	bnr = b.GetNumRows(); bnc = b.GetNumCols();
@@ -972,7 +964,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///	if (mft & matrixFormatBlock)
 ///	{
 ///		// block
-///		const size_t* blockPos = a.GetBlockPos();
+///		const index_t* blockPos = a.GetBlockPos();
 ///		for (size_t j=0; j<nc; ++j)
 ///		{
 ///			size_t k = blockPos[j]; if (k==string::npos) continue;
@@ -1050,7 +1042,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///	else if (mft == matrixFormatSparseBSC || mft == matrixFormatSparseBSR)
 ///	{
 ///		ElemType* pBuffer = rhs.GetBuffer();
-///		size_t* blockPos = rhs.GetBlockPos();
+///		index_t* blockPos = rhs.GetBlockPos();
 ///		size_t nc = (mft & matrixFormatRowMajor) ? rhs.GetNumRows() : rhs.GetNumCols();
 ///		size_t nr = (mft & matrixFormatRowMajor) ? rhs.GetNumCols() : rhs.GetNumRows();
 ///		for (size_t j=0; j<nc; ++j)
@@ -1095,7 +1087,7 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///	}
 ///	else if (mft == matrixFormatSparseBSC || mft == matrixFormatSparseBSR)
 ///	{
-///		size_t* blockPos = lhs.GetBlockPos();
+///		index_t* blockPos = lhs.GetBlockPos();
 ///		const ElemType* lp = lhs.Buffer();
 ///
 ///		bool bsc = (mft == matrixFormatSparseBSC);

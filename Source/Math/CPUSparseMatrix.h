@@ -15,6 +15,8 @@
 
 namespace Microsoft { namespace MSR { namespace CNTK {
 
+template<class> class CPUMatrix;
+
 
 template <class ElemType>
 class MATH_API CPUSparseMatrix : public BaseMatrix<ElemType>
@@ -23,25 +25,35 @@ class MATH_API CPUSparseMatrix : public BaseMatrix<ElemType>
 
 public:
 	explicit CPUSparseMatrix(int flags=0) : Base(MatrixFormat(matrixFormatSparse|flags), CPUDEVICE) {}
-	CPUSparseMatrix(size_t rows, size_t cols, size_t n=0, int flags=0) : Base(MatrixFormat(matrixFormatSparse|flags), CPUDEVICE) { Resize(rows,cols); if (n) Allocate(n); }
-///	CPUSparseMatrix(const CPUSparseMatrix<ElemType>& copyFrom) { Assign(copyFrom); }
-///	CPUSparseMatrix<ElemType>& operator=(const CPUSparseMatrix<ElemType>& copyFrom) { if (&copyFrom!=this) Assign(copyFrom); return *this; }
-///	CPUSparseMatrix(CPUSparseMatrix<ElemType>&& moveFrom) { Assign(moveFrom,true); moveFrom.Release(); }
-///	CPUSparseMatrix<ElemType>& operator=(CPUSparseMatrix<ElemType>&& moveFrom) { if (&moveFrom!=this) { Assign(moveFrom); moveFrom.Release(); } return *this; }
+	CPUSparseMatrix(size_t rows, size_t cols, int flags=0) : Base(MatrixFormat(matrixFormatSparse|flags), CPUDEVICE) { Resize(rows,cols); }
+	CPUSparseMatrix(const CPUSparseMatrix<ElemType>& mat, bool shallow) { Assign(mat, shallow); }
+
+	CPUSparseMatrix(const CPUSparseMatrix<ElemType>& mat) { SetValue(mat); }
+	CPUSparseMatrix<ElemType>& operator=(const CPUSparseMatrix<ElemType>& mat) { if (&mat!=this) SetValue(mat); return *this; }
+
+	CPUSparseMatrix(CPUSparseMatrix<ElemType>&& mat) { Assign(mat, true); mat.Release(); }
+	CPUSparseMatrix<ElemType>& operator=(CPUSparseMatrix<ElemType>&& mat) { if (&mat!=this) { Assign(mat, true); mat.Release(); } return *this; }
 
 public:
-///	//void SetValue(size_t row, size_t col, ElemType val) { PutItem(row, col, val); }
-///	//void SetValue(const CPUMatrix<ElemType>& mat);
-///	//void SetValue(const GPUMatrix<ElemType>& mat);
-///	void SetValue(const CPUSparseMatrix<ElemType>& mat);
-///	//void SetValue(const GPUSparseMatrix<ElemType>& mat);
-///
+	void SetValue(const CPUSparseMatrix<ElemType>& mat);
+	//void SetValue(size_t rows, size_t cols, ElemType* p, int flags = matrixFlagNone);
+
+	void SetDiagonalValue(ElemType v);
+	void SetDiagonalValue(const CPUMatrix<ElemType>& v);
+	CPUMatrix<ElemType> Diagonal() const;
+
+	CPUSparseMatrix<ElemType> GetColumnSlice(size_t start, size_t len) const;
+
+	CPUMatrix<ElemType> CopyToDense() const { CPUMatrix<ElemType> dm; Base::CopyToDense(dm); return dm; }
+	CPUSparseMatrix<ElemType> CopyToBlock() const { CPUSparseMatrix<ElemType> dm; Base::CopyToBlock(dm); return dm; }
+	void ConvertToFullBlock() { CPUSparseMatrix<ElemType> sm; CopyToFullBlock(sm); Assign(sm,true); }
+
+	CPUSparseMatrix<ElemType> Transpose(bool hdr=false) const { CPUSparseMatrix<ElemType> sm; TransposeTo(sm); return sm; }
+
 ///	void MaskColumnsValue(const CPUMatrix<char>& mask, ElemType val, size_t mcols);
 ///
 ///	CPUSparseMatrix<ElemType>& AssignOneHot(const CPUMatrix<ElemType>& a, vector<size_t>& shape, size_t axis);
-///	void SetDiagonalValue(ElemType v);
-///	void SetDiagonalValue(const CPUMatrix<ElemType>& v);
-///
+
 ///	CPUSparseMatrix<ElemType>& DoGatherColumnsOf(ElemType beta, const CPUMatrix<ElemType>& idx, const CPUSparseMatrix<ElemType>& a, ElemType alpha);
 ///	CPUSparseMatrix<ElemType>& DoScatterColumnsOf(ElemType beta, const CPUMatrix<ElemType>& idx, const CPUSparseMatrix<ElemType>& a, ElemType alpha) { NOT_IMPLEMENTED }
 ///
@@ -49,18 +61,6 @@ public:
 ///
 ///	size_t BufferSize() const { return GetSizeAllocated() * sizeof(ElemType); }
 ///	size_t GetNumElemAllocated() const { return GetSizeAllocated(); }
-///
-///	CPUSparseMatrix<ElemType> GetColumnSlice(size_t start, size_t len) const;
-///	CPUMatrix<ElemType> CopyColumnSliceToDense(size_t start, size_t len) const;
-///	void AssignColumnSliceToDense(CPUMatrix<ElemType>& slice, size_t start, size_t len) const;
-///
-///	CPUMatrix<ElemType> DiagonalToDense() const;
-///	CPUMatrix<ElemType> CopyToDense() const { CPUMatrix<ElemType> dm; Base::CopyToDense(dm); return dm; }
-///	CPUSparseMatrix<ElemType> CopyToSparse() const { CPUSparseMatrix<ElemType> dm; Base::CopyToSparse(dm); return dm; }
-///	CPUSparseMatrix<ElemType> CopyToBlock() const { CPUSparseMatrix<ElemType> dm; Base::CopyToBlock(dm); return dm; }
-///	void ConvertToFullBlock() { m_sob->MakeFullBlock(); }
-
-///	CPUSparseMatrix<ElemType> Transpose(bool hdr=false) const { CPUSparseMatrix<ElemType> sm; sm.TransposeFrom(*this,hdr); return sm; }
 
 ///	void SetGaussianRandomValue(ElemType /*mean*/, ElemType /*sigma*/, unsigned long /*seed*/)
 ///	{
