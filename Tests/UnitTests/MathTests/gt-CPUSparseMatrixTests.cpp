@@ -24,73 +24,54 @@ public:
 	static void TearDownTestCase() {}
 };
 
-static void TestSetDiagonalValue(MatrixFormat mft)
+static void TestSetValues(MatrixFormat mft)
 {
 	SparseMatrix m1(mft);
-	m1.Resize(4, 3);
-	m1.PutItem(0, 0, 10);
-	m1.PutItem(1, 1, 10);
-	m1.PutItem(2, 2, 10);
+	std::array<float, 12> array = { 0, 2, 0, 4, 0, 6, 0, 8, 0, 10, 0, 12 };
+	m1.Assign(3, 4, array.data());
 
-	SparseMatrix m2(mft);
-	m2.Resize(4, 3);
-	m2.SetDiagonalValue(10);
+	cout << "\t\tmatrix " << m1.FormatStr() << endl;
+
+	SparseMatrix m2(m1);
+	ASSERT_EQ(m2.GetFormat(), mft);
 	ASSERT_TRUE(m2.IsEqualTo(m1));
+	ASSERT_EQ(m2.GetItem(0,0), 0);
+	ASSERT_EQ(m2.GetItem(1,0), 2);
+	ASSERT_EQ(m2.GetItem(2,0), 0);
+	ASSERT_EQ(m2.GetItem(0,1), 4);
+	ASSERT_EQ(m2.GetItem(1,1), 0);
+	ASSERT_EQ(m2.GetItem(2,1), 6);
+	ASSERT_EQ(m2.GetItem(0,2), 0);
+	ASSERT_EQ(m2.GetItem(1,2), 8);
+	ASSERT_EQ(m2.GetItem(2,2), 0);
+	ASSERT_EQ(m2.GetItem(0,3), 10);
+	ASSERT_EQ(m2.GetItem(1,3), 0);
+	ASSERT_EQ(m2.GetItem(2,3), 12);
 
-	DenseMatrix dm(1, 3, mft);
-	dm.PutItem(0, 0, 10);
-	dm.PutItem(0, 1, 10);
-	dm.PutItem(0, 2, 10);
+	m1.Init(MatrixFormat(mft | matrixFormatRowMajor));
+	m1.Assign(3, 4, array.data());
+	ASSERT_EQ(m1.GetItem(0,0), 0);
+	ASSERT_EQ(m1.GetItem(0,1), 4);
+	ASSERT_EQ(m1.GetItem(0,2), 0);
+	ASSERT_EQ(m1.GetItem(0,3), 10);
+	ASSERT_EQ(m1.GetItem(1,0), 2);
+	ASSERT_EQ(m1.GetItem(1,1), 0);
+	ASSERT_EQ(m1.GetItem(1,2), 8);
+	ASSERT_EQ(m1.GetItem(1,3), 0);
+	ASSERT_EQ(m1.GetItem(2,0), 0);
+	ASSERT_EQ(m1.GetItem(2,1), 6);
+	ASSERT_EQ(m1.GetItem(2,2), 0);
+	ASSERT_EQ(m1.GetItem(2,3), 12);
 
-	SparseMatrix m3(mft);
-	m3.Resize(4, 3);
-	m3.SetDiagonalValue(dm);
-	ASSERT_TRUE(m3.IsEqualTo(m1));
+	SparseMatrix m3(m1);
+	ASSERT_EQ(m3.GetFormat(), mft);
+	ASSERT_TRUE(m3.IsEqualTo(m2));
 }
 
 TEST_F(CPUSparseMatrixTests, SetValues)
 {
-//	std::array<float, 12> array = { 0, 2, 0, 4, 0, 6, 0, 8, 0, 10, 0, 12 };
-//
-//	SparseMatrix m1(matrixFormatSparseCSC);
-//	m1.Assign(3, 4, array.data());
-//cout << endl << m1.GetInfo() << endl; m1.ViewData(cout);
-//	SparseMatrix m2; m2.SetValue(m1);
-//	ASSERT_EQ(m2.GetFormat(), matrixFormatSparseCSC);
-//	ASSERT_TRUE(m2.IsEqualTo(m1));
-//
-//	m1.Assign(3, 4, array.data(), matrixFlagRowMajor);
-//cout << endl << m1.GetInfo() << endl; m1.ViewData(cout);
-
-	//ASSERT_EQ(m1.GetFormat(), matrixFormatSparseCSR);
-	//ASSERT_EQ(m1.GetNumRows(), 3);
-	//ASSERT_EQ(m1.GetNumCols(), 4);
-
-	//m2.SetValue(m1);
-	//ASSERT_EQ(m2.GetFormat(), matrixFormatSparseCSC);
-	//ASSERT_EQ(m2.GetNumRows(), 3);
-	//ASSERT_EQ(m2.GetNumCols(), 4);
-	//ASSERT_EQ(m2(0,0), 0);
-	//ASSERT_EQ(m2(1,0), 0);
-	//ASSERT_EQ(m2(2,0), 0);
-	//ASSERT_EQ(m2(0,1), 2);
-	//ASSERT_EQ(m2(1,1), 6);
-	//ASSERT_EQ(m2(2,1), 10);
-	//ASSERT_EQ(m2(0,2), 0);
-	//ASSERT_EQ(m2(1,2), 0);
-	//ASSERT_EQ(m2(2,2), 0);
-	//ASSERT_EQ(m2(0,3), 4);
-	//ASSERT_EQ(m2(1,3), 8);
-	//ASSERT_EQ(m2(2,3), 12);
-
-	//TestSetDiagonalValue(matrixFormatSparseCSC);
-	//TestSetDiagonalValue(matrixFormatSparseBSC);
-
-	//BaseMatrix<float> bm(matrixFormatSparseBSC);
-	//bm.Resize(3,4); Random(bm);
-	//cout << endl << bm.GetInfo() << endl; bm.ViewData(cout);
-	//bm.Resize(3,4);
-	//cout << endl << bm.GetInfo() << endl; bm.ViewData(cout);
+	TestSetValues(matrixFormatSparseCSC);
+	TestSetValues(matrixFormatSparseBSC);
 }
 
 TEST_F(CPUSparseMatrixTests, ColumnSlice)
@@ -123,20 +104,43 @@ TEST_F(CPUSparseMatrixTests, MakeFullBlock)
 	ASSERT_TRUE(sm.IsEqualTo(dm));
 }
 
-TEST_F(CPUSparseMatrixTests, Diagonal)
+static void TestDiagonal(MatrixFormat mft)
 {
-	SparseMatrix sm1(4,6); Random(sm1,18);
+	SparseMatrix m1(mft);
+
+	cout << "\t\tmatrix " << m1.FormatStr() << endl;
+
+	m1.Resize(4, 3);
+	m1.PutItem(0, 0, 10);
+	m1.PutItem(1, 1, 10);
+	m1.PutItem(2, 2, 10);
+
+	SparseMatrix m2(mft);
+	m2.Resize(4, 3);
+	m2.SetDiagonalValue(10);
+	ASSERT_TRUE(m2.IsEqualTo(m1));
+
+	DenseMatrix dm(1,3);
+	dm.PutItem(0, 0, 10);
+	dm.PutItem(0, 1, 10);
+	dm.PutItem(0, 2, 10);
+
+	SparseMatrix m3(mft);
+	m3.Resize(4, 3);
+	m3.SetDiagonalValue(dm);
+	ASSERT_TRUE(m3.IsEqualTo(m1));
+
+	SparseMatrix sm1(4,6,mft); Random(sm1,18);
 	DenseMatrix dm1 = sm1.CopyToDense();
 	DenseMatrix dm2 = dm1.Diagonal();
 	DenseMatrix dm3 = sm1.Diagonal();
 	ASSERT_TRUE(dm3.IsEqualTo(dm2));
+}
 
-	sm1.Init(matrixFormatSparseBSC);
-	sm1.Resize(4,6); Random(sm1,18);
-	dm1 = sm1.CopyToDense();
-	dm2 = dm1.Diagonal();
-	dm3 = sm1.Diagonal();
-	ASSERT_TRUE(dm3.IsEqualTo(dm2));
+TEST_F(CPUSparseMatrixTests, Diagonal)
+{
+	TestDiagonal(matrixFormatSparseCSC);
+	TestDiagonal(matrixFormatSparseBSC);
 }
 
 ///TEST_F(CPUSparseMatrixTests, MultiplyAndAdd)

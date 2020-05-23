@@ -229,7 +229,6 @@ static void TestSetSlice(MatrixFormat mft)
 	m.Init(MatrixFormat(mft | matrixFormatRowMajor));
 	m.Assign(3, 4, array.data(), matrixFlagNone);
 	m.SetSlice(1,2);
-//cout << endl << m.GetInfo() << endl; m.ViewData(cout);
 	ASSERT_EQ(m.GetItem(0,0), 2);
 	ASSERT_EQ(m.GetItem(0,2), 8);
 	ASSERT_EQ(m.GetItem(1,0), 3);

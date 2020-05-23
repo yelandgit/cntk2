@@ -734,24 +734,14 @@ TEST_F(CPUMatrixTests, ColumnSlice)
 	m3.AssignColumnSlice(m0, 1, 2);
 	ASSERT_TRUE(m3.IsEqualTo(m1));
 
-	// TODO: this fails due to access violation (at least on desktop machine of pkranen)
-	// size_t k = 100, n = 20, m = 50;
-	// reducing sizes to 2, 20, 5
-	size_t k = 2;
+	size_t k = 100;
 	size_t n = 20;
-	size_t m = 5;
+	size_t m = 50;
 
-	CPUDoubleMatrix mA(k, n);
-	mA.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
-
-	CPUDoubleMatrix mB(n, m);
-	mB.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
-
-	CPUDoubleMatrix mC(k, m);
-	mC.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
-
-	CPUDoubleMatrix mD(k, m);
-	mD.SetValue(mC);
+	CPUDoubleMatrix mA(k, n); mA.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
+	CPUDoubleMatrix mB(n, m); mB.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
+	CPUDoubleMatrix mC(k, m); mC.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
+	CPUDoubleMatrix mD(k, m); mD.SetValue(mC);
 
 	CPUDoubleMatrix::MultiplyAndAdd(mA, false, mB, false, mD);
 
@@ -1045,10 +1035,12 @@ TEST_F(CPUMatrixTests, Adam)
 	CPUMatrix<double> parameters(2, 1);
 	CPUMatrix<double> expectedParameters(2, 1);
 	CPUMatrix<double> expectedStates(2, 2);
+
 	double gradientValues[] = { 0.1, -0.1 };
 	double paramValues[] = { 0.1, 0.1 };
 	double expectedValues[] = { -0.05811338, 0.25811338 };
 	double expectedStateValues[] = {1e-5, 0.01, 1e-5, -0.01};
+
 	gradients.SetValue(2, 1, gradientValues, matrixFormatRowMajor);
 	parameters.SetValue(2, 1, paramValues, matrixFormatRowMajor);
 	expectedParameters.SetValue(2, 1, expectedValues, matrixFormatRowMajor);
@@ -1075,6 +1067,7 @@ TEST_F(CPUMatrixTests, AdamVarEpsilon)
 	CPUMatrix<double> parameters(2, 1);
 	CPUMatrix<double> expectedParameters(2, 1);
 	CPUMatrix<double> expectedStates(2, 2);
+
 	double gradientValues[] = { 0.1, -0.1 };
 	double paramValues[] = { 0.1, 0.1 };
 	double expectedValues[] = { 0.0951532672, 0.1048467328 };
