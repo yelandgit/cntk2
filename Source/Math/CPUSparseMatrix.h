@@ -139,6 +139,7 @@ public:
 	//void Reset();
 
 	const ElemType& operator()(size_t row, size_t col) const { value = m_sob->GetItem(row, col, m_sliceOffset); return value; }
+	//ElemType& operator()(size_t row, size_t col) { return m_sob->Item(row, col, m_sliceOffset); }
 
 public:
 ///	void NormalGrad(CPUMatrix<ElemType>& c, ElemType momentum, ElemType unitGainFactor) { NOT_IMPLEMENTED }
