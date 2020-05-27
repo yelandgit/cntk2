@@ -1635,6 +1635,7 @@ public:
 
 	ElemType GetItem(size_t row, size_t col) const { return m_sob->GetItem(row, col, m_sliceOffset); }
 	void PutItem(size_t row, size_t col, ElemType val) { m_sob->PutItem(row, col, val, m_sliceOffset); }
+	ElemType& Item(size_t row, size_t col) { return m_sob->Item(row,col); }
 
 	void GetSparseData(SparseData<ElemType>& spd) const;
 	void PutSparseData(const SparseData<ElemType>& spd);
