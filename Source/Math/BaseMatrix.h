@@ -42,8 +42,8 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///MATH_API void SetMathLibTraceLevel(int traceLevel);
 ///MATH_API int  GetMathLibTraceLevel();
 
-inline bool IsCpu(device_t dev) { return dev < 0; }
-inline bool IsGpu(device_t dev) { return dev >= 0; }
+inline bool CpuDevice(device_t dev) { return dev < 0; }
+inline bool GpuDevice(device_t dev) { return dev >= 0; }
 
 inline size_t getbuffsize(size_t n, size_t m=2) { return (n + (m-1)) & ~(m-1); }
 
@@ -448,6 +448,8 @@ public:
 	ElemType GetItem(size_t row, size_t col, size_t offset=0) const;
 	void PutItem(size_t row, size_t col, ElemType val, size_t offset=0);
 
+	ElemType& Item(size_t row, size_t col, size_t offset=0);
+
 	void GetSparseData(SparseData<ElemType>& v, size_t offset=0, size_t len=0) const;
 	void PutSparseData(const SparseData<ElemType>& spd);
 
@@ -536,7 +538,7 @@ void BaseMatrixStorage<ElemType>::ZeroInit(MatrixFormat mft, device_t dev)
 template<class ElemType>
 void BaseMatrixStorage<ElemType>::Release(bool all)
 {
-	if (m_deviceId < 0)
+	if (CpuDevice(m_deviceId))
 	{
 		if (m_extBuffer) { m_extBuffer = false; m_pBuffer = nullptr; m_buffSize = 0; }
 		else if (all) { delete[] m_pBuffer; m_pBuffer = nullptr; m_buffSize = 0; }
@@ -1213,7 +1215,6 @@ ElemType BaseMatrixStorage<ElemType>::GetItem(size_t row, size_t col, size_t off
 template <class ElemType>
 void BaseMatrixStorage<ElemType>::PutItem(size_t row, size_t col, ElemType val, size_t offset)
 {
-	// row/col priority
 	size_t nr = m_numRows, nc = m_numCols;
 	if (m_format & matrixFormatRowMajor) { size_t i = row; row = col; col = i; nr = m_numCols; nc = m_numRows; }
 
@@ -1252,6 +1253,40 @@ void BaseMatrixStorage<ElemType>::PutItem(size_t row, size_t col, ElemType val, 
 		}
 		m_pBuffer[i*nr + row] = val;
 	}
+}
+
+template <class ElemType>
+ElemType& BaseMatrixStorage<ElemType>::Item(size_t row, size_t col, size_t offset)
+{
+	size_t nr = m_numRows, nc = m_numCols;
+	if (m_format & matrixFormatRowMajor) { size_t i = row; row = col; col = i; nr = m_numCols; nc = m_numRows; }
+	col += (IsDenseFormat()) ? offset/nr : offset;
+	if (col>=nc || row>=nr) InvalidArgument("Item (%lu,%lu) is out of range [%lu,%lu]", row, col, nr, nc);
+
+	if (IsDenseFormat()) return m_pBuffer[col*nr + row];
+	if (IsSparseFormat())
+	{
+		size_t pos = m_compPos[col];
+		for (size_t fin=m_compPos[col+1]; pos<fin; ++pos)
+			if (m_compId[pos]==row) return m_pBuffer[pos];
+
+		size_t n = m_compPos[nc]; if (n==m_buffSize) Allocate(m_buffSize+max(nr,nc));
+		for (size_t i=n; i>pos; --i) { m_pBuffer[i] = m_pBuffer[i-1]; m_compId[i] = m_compId[i-1]; }
+		for (size_t i=col+1; i<=nc; ++i) ++m_compPos[i];
+		m_compId[pos] = index_t(row);
+		return m_pBuffer[pos];
+	}
+	size_t i = m_compPos[col];
+	if (i==string::npos)
+	{
+		if ((m_blockCnt+1)*nr > m_buffSize)
+		{
+			size_t k = int(0.3*nc + 0.5); if (k==0) ++k;
+			Allocate(m_buffSize + k*nr);
+		}
+		m_compPos[col] = index_t(i = m_blockCnt++);
+	}
+	return m_pBuffer[i*nr + row];
 }
 
 template <class ElemType>
@@ -1406,7 +1441,7 @@ string BaseMatrixStorage<ElemType>::GetInfo(bool all) const
 					+ (m_format & matrixFormatSparse ? "s":"d")
 					+ (m_format & matrixFormatRowMajor ? "r":"c");
 	// device
-	if (m_deviceId>=0) { sprintf_s(sz, sizeof(sz), "  GPU-%d", m_deviceId); s += sz; }
+	if (GpuDevice(m_deviceId)) { sprintf_s(sz, sizeof(sz), "  GPU-%d", m_deviceId); s += sz; }
 	else if (m_deviceId==CPUDEVICE) s += "  CPU";
 	else if (m_deviceId==DEVICE_NOTSET) s += "  NotSet";
 	else if (m_deviceId==DEVICE_AUTO) s += "  Auto";
@@ -1590,7 +1625,7 @@ public:
 	bool IsEmpty() const { return m_numRows == 0 || m_numCols == 0; }
 
 	bool HasExternalBuffer() const { return m_sob->HasExternalBuffer(); }
-	bool OwnBuffer() const { return !m_sob->HasExternalBuffer(); }
+	bool HasOwnBuffer() const { return !m_sob->HasExternalBuffer(); }
 	bool IsSlice() const { return (m_numRows!=m_sob->GetNumRows() || m_numCols!=m_sob->GetNumCols() || m_sliceOffset!=0); }
 
 	ElemType* GetBuffer() const { return m_sob->GetBuffer(); }											// dense/sparse
@@ -1668,13 +1703,13 @@ public:
 	//		LogicError("%s: Cannot resize the matrix because it is externally owned.", function);
 	//}
 	// same as VerifyResizable() except for the error message. Could be folded into one.
-	//void VerifyMigratable(const char* function) const
-	//{
-	//	if (!m_sob.unique())
-	//		LogicError("%s: Cannot migrate the matrix between devices because it is a view.", function);
-	//	if (m_sob->HasExternalBuffer())
-	//		LogicError("%s: Cannot migrate the matrix between devices because it is externally owned.", function);
-	//}
+	void VerifyMigratable(const char* func) const
+	{
+		if (!m_sob.unique())
+			LogicError("%s; Cannot migrate the matrix between devices with slice", func);
+		if (m_sob->HasExternalBuffer())
+			LogicError("%s; Cannot migrate the matrix between devices with external buffer", func);
+	}
 	// This is needed for Sparse Matrices to ensure they can write to the matrix. Note: writing to slices is not currently supported
 	//void VerifyWritable(const char* function) const
 	//{

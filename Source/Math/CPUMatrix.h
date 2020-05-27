@@ -91,8 +91,8 @@ public:
 //	size_t CopyToArray(ElemType*& copyTo, size_t& currSize) const;	// allocated by the callee but need to be deleted by the caller
 //	void CopySection(size_t numRows, size_t numCols, ElemType* dst, size_t colStride) const;
 
-	inline ElemType& operator()(size_t row, size_t col) { return GetData()[ItemPos(row, col)]; }
 	inline const ElemType& operator()(size_t row, size_t col) const { return GetData()[ItemPos(row, col)]; }
+	inline ElemType& operator()(size_t row, size_t col) { return GetData()[ItemPos(row, col)]; }
 	inline ElemType GetFirstItem() const { return GetData()[0]; }
 
 //	void MaskColumnsValue(const CPUMatrix<char>& columnsMask, ElemType val, size_t numColsPerMaskEntry);

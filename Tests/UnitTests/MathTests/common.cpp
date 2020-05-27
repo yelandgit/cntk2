@@ -6,7 +6,7 @@
 #include "common.h"
 
 #ifdef CPUONLY
-const int c_deviceIdZero = -1;
+const int c_deviceIdZero = CPUDEVICE;
 #else
 const int c_deviceIdZero = 0;
 #endif

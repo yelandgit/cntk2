@@ -27,56 +27,45 @@ public:
 
 ///TEST_F(MatrixTests, Constructors)
 ///{
-///	SingleMatrix a0(c_deviceIdZero);
-///	SingleMatrix a1(c_deviceIdZero);
-///	SingleMatrix a2(CPUDEVICE);
-///	SingleMatrix a3(13, 12, c_deviceIdZero);
-
-///	ASSERT_EQ(0, a0.GetNumRows());
-///	ASSERT_EQ(0, a0.GetNumCols());
-///	ASSERT_EQ(0, a1.GetNumRows());
-///	ASSERT_EQ(0, a1.GetNumCols());
-///	ASSERT_EQ(13, a3.GetNumRows());
-///	ASSERT_EQ(12, a3.GetNumCols());
-
-///	ASSERT_EQ(a0.GetDeviceId(), c_deviceIdZero);
-///	ASSERT_EQ(a1.GetDeviceId(), c_deviceIdZero);
-///	ASSERT_EQ(a2.GetDeviceId(), CPUDEVICE);
-///	ASSERT_EQ(a3.GetDeviceId(), c_deviceIdZero);
+///	SingleMatrix a1(CPUDEVICE);
+///	SingleMatrix a2(c_deviceIdZero);
+///	SingleMatrix a3(13, 12, CPUDEVICE);
+///	SingleMatrix a4(13, 12, c_deviceIdZero);
+///
+///	ASSERT_EQ(a1.GetDeviceId(), CPUDEVICE);
+///	ASSERT_EQ(a2.GetDeviceId(), c_deviceIdZero);
+///	ASSERT_EQ(a3.GetDeviceId(), CPUDEVICE);
+///	ASSERT_EQ(a4.GetDeviceId(), c_deviceIdZero);
+///
+///	ASSERT_EQ(a1.GetNumRows(), 0);
+///	ASSERT_EQ(a1.GetNumCols(), 0);
+///	ASSERT_EQ(a2.GetNumRows(), 0);
+///	ASSERT_EQ(a2.GetNumCols(), 0);
+///	ASSERT_EQ(a3.GetNumRows(), 13);
+///	ASSERT_EQ(a3.GetNumCols(), 12);
+///	ASSERT_EQ(a4.GetNumRows(), 13);
+///	ASSERT_EQ(a4.GetNumCols(), 12);
 ///}
-
-///TEST_F(MatrixTests, MoveTest1)
+///
+///TEST_F(MatrixTests, MoveTest)
 ///{
-///	// no moves required
-///	SingleMatrix a(c_deviceIdZero);
+///	SingleMatrix a(CPUDEVICE);
 ///	SingleMatrix b(c_deviceIdZero);
 ///	b.Resize(50, 100);
-
+///
+///	ASSERT_EQ(a.GetNumRows(), 0);
+///	ASSERT_EQ(a.GetNumCols(), 0);
 ///	ASSERT_EQ(b.GetNumRows(), 50);
 ///	ASSERT_EQ(b.GetNumCols(), 100);
-///	ASSERT_EQ(a.GetDeviceId(), c_deviceIdZero);
-///	ASSERT_EQ(b.GetDeviceId(), c_deviceIdZero);
-
+///
 ///	std::swap(a, b);
 ///	ASSERT_EQ(a.GetNumRows(), 50);
 ///	ASSERT_EQ(a.GetNumCols(), 100);
-///	ASSERT_EQ(a.GetDeviceId(), c_deviceIdZero);
-///	ASSERT_EQ(b.GetDeviceId(), c_deviceIdZero);
-///}
+///	ASSERT_EQ(b.GetNumRows(), 0);
+///	ASSERT_EQ(b.GetNumCols(), 0);
 
-///TEST_F(MatrixTests, MoveTest2)
-///{
-///	// potentially a move is required
-///	SingleMatrix a(c_deviceIdZero);
-///	SingleMatrix b(c_deviceIdZero);
-///	b.Resize(50, 100);
-///	ASSERT_EQ(b.GetNumRows(), 50);
-///	ASSERT_EQ(b.GetNumCols(), 100);
-///	ASSERT_EQ(a.GetDeviceId(), c_deviceIdZero);
-///	ASSERT_EQ(b.GetDeviceId(), c_deviceIdZero);
-
-///	b(12, 13) = 14; // this will move whole matrix B from GPU to CPU
-///	ASSERT_EQ(b.GetDeviceId(), -1);
+///	a(12, 13) = 14; // this will move whole matrix B from GPU to CPU
+///	ASSERT_EQ(a.GetDeviceId(), -1);
 
 ///	std::swap(a, b); // this will not only swap A and B but will put them to their preferred device (GPU if present)
 ///	ASSERT_EQ(a.GetNumRows(), 50);

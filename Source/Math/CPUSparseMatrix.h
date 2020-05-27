@@ -23,6 +23,8 @@ class MATH_API CPUSparseMatrix : public BaseMatrix<ElemType>
 {
 	typedef BaseMatrix<ElemType> Base;
 
+	mutable ElemType	value;			// for const ElemType& operator()
+
 public:
 	explicit CPUSparseMatrix(int flags=0) : Base(MatrixFormat(matrixFormatSparse|flags), CPUDEVICE) {}
 	CPUSparseMatrix(size_t rows, size_t cols, int flags=0) : Base(MatrixFormat(matrixFormatSparse|flags), CPUDEVICE) { Resize(rows,cols); }
@@ -136,7 +138,7 @@ public:
 
 	//void Reset();
 
-	ElemType operator()(size_t row, size_t col) const { return GetItem(row, col); }
+	const ElemType& operator()(size_t row, size_t col) const { value = m_sob->GetItem(row, col, m_sliceOffset); return value; }
 
 public:
 ///	void NormalGrad(CPUMatrix<ElemType>& c, ElemType momentum, ElemType unitGainFactor) { NOT_IMPLEMENTED }

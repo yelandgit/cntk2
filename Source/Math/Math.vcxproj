@@ -196,7 +196,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="GPURNGHandle.cu" />
     <None Include="prelink.bat" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -68,6 +68,5 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="prelink.bat" />
-    <None Include="GPURNGHandle.cu" />
   </ItemGroup>
 </Project>
