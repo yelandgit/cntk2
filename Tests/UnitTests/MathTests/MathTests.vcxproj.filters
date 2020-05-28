@@ -58,6 +58,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="_bin.bat" />
+    <None Include="postbuild.bat">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

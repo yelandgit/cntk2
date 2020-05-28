@@ -29,7 +29,7 @@
 #define LAPACK_COMPLEX_STRUCTURE
 #endif
 #include <cblas.h>
-#include <lapacke.h>
+//#include <lapacke.h>
 #endif
 
 namespace Microsoft { namespace MSR { namespace CNTK {

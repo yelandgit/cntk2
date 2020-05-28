@@ -10,7 +10,7 @@
 #include "TensorOps.h"
 #include <assert.h>
 //#include <stdexcept>
-#include <omp.h>
+//#include <omp.h>
 #include <math.h>
 //#include <random>
 //#include <chrono>
@@ -48,7 +48,7 @@
 #define LAPACK_COMPLEX_STRUCTURE
 #endif
 #include <cblas.h>
-#include <lapacke.h>
+//#include <lapacke.h>
 #endif
 
 //#define SWAP(a, b)  \
@@ -652,7 +652,6 @@ void CPUMatrix<ElemType>::SetValue(size_t rows, size_t cols, ElemType* p, int fl
 #pragma omp parallel for
 		foreach_column (j, us)
 		{
-#pragma warning(suppress : 4244)
 			cblas_scopy((int)rows, reinterpret_cast<float*>(p + j), (int)cols, reinterpret_cast<float*>(ptr + ColumnPos(j)), 1);
 		}
 	}
@@ -6705,20 +6704,17 @@ void CPUMatrix<ElemType>::ScatterValues(ElemType* indices, ElemType* value, Elem
 
 #pragma omp parallel
 	{
-		int ithread = omp_get_thread_num();
-		int nthread = omp_get_num_threads();
+		//int ithread = omp_get_thread_num();
+		//int nthread = omp_get_num_threads();
 		for (auto i = 0; i < num_indices; i++)
 		{
 			auto col_r = indices[i * indices_step];
-			if (std::isnan(col_r) || col_r < 0)
-				continue;
+			if (std::isnan(col_r) || col_r < 0) continue;
 			auto col = (size_t)col_r;
 			//ignore the elements that is not partitioned into this thread
-			if (col % nthread != ithread)
-				continue;
+			//if (col % nthread != ithread) continue;
 			//check if colMask is invalid
-			if (mask && mask[i * indices_step / numElemsPerMaskEntry] == 0)
-				continue;
+			if (mask && mask[i * indices_step / numElemsPerMaskEntry] == 0) continue;
 
 			if (col >= cols)
 				InvalidArgument("ScatterValues: Indices map out of bounds. %ld >= %ld", (long int)col, (long int)cols);

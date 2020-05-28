@@ -5,12 +5,16 @@
 
 # Compiled Object files
 /Source/Common/x64/*
+/Source/Common/.vs/*
 /Source/Math/x64/*
+/Source/Math/.vs/*
 /Tests/UnitTests/GoogleTestHelper/x64/*
 /Tests/UnitTests/FileTests/TestTemp/*
 /Tests/UnitTests/FileTests/x64/*
+/Tests/UnitTests/FileTests/.vs/*
 /Tests/UnitTests/MathTests/TestTemp/*
 /Tests/UnitTests/MathTests/x64/*
+/Tests/UnitTests/MathTests/.vs/*
 /Release/*
 /Debug/*
 /x64/*
