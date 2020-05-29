@@ -61,7 +61,7 @@ TEST_F(BaseMatrixTests, ConstructorNoFlags)
 	ASSERT_TRUE(!m.IsEmpty());
 	ASSERT_EQ(m.GetNumRows(), 2);
 	ASSERT_EQ(m.GetNumCols(), 3);
-	ASSERT_EQ(m.GetNumElements(), 6);
+	ASSERT_EQ(m.GetItemCount(), 6);
 
 	m.PutItem(0, 0, 1);
 	m.PutItem(1, 2, 2);

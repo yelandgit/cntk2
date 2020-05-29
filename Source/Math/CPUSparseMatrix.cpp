@@ -171,7 +171,6 @@ void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
 
 
 
-
 ///template <class ElemType>
 ///CPUSparseMatrix<ElemType>& CPUSparseMatrix<ElemType>::AssignOneHot(const CPUMatrix<ElemType>& a, vector<size_t>& shape, size_t axis)
 ///{

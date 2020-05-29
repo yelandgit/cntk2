@@ -42,8 +42,8 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///MATH_API void SetMathLibTraceLevel(int traceLevel);
 ///MATH_API int  GetMathLibTraceLevel();
 
-inline bool CpuDevice(device_t dev) { return dev < 0; }
-inline bool GpuDevice(device_t dev) { return dev >= 0; }
+inline bool IsCPU(device_t dev) { return dev < 0; }
+inline bool IsGPU(device_t dev) { return dev >= 0; }
 
 inline size_t getbuffsize(size_t n, size_t m=2) { return (n + (m-1)) & ~(m-1); }
 
@@ -246,12 +246,13 @@ enum MatrixFormat : int
 	matrixFormatColMajor		= 0,			// default is column major
 	matrixFormatRowMajor		= 0x0001,		// row major matrix
 	matrixFormatSparse			= 0x0002,		// sparse matrix
-	matrixFormatBlock			= 0x0004,
+	matrixFormatCompressed		= 0x0004,
+	matrixFormatBlock			= 0x0008,
 
 	matrixFormatDenseCol		= matrixFormatDense + matrixFormatColMajor,
 	matrixFormatDenseRow		= matrixFormatDense + matrixFormatRowMajor,
-	matrixFormatSparseCSC		= matrixFormatSparse + matrixFormatColMajor,
-	matrixFormatSparseCSR		= matrixFormatSparse + matrixFormatRowMajor,
+	matrixFormatSparseCSC		= matrixFormatSparse + matrixFormatColMajor + matrixFormatCompressed,
+	matrixFormatSparseCSR		= matrixFormatSparse + matrixFormatRowMajor + matrixFormatCompressed,
 	matrixFormatSparseBSC		= matrixFormatSparse + matrixFormatColMajor + matrixFormatBlock,
 	matrixFormatSparseBSR		= matrixFormatSparse + matrixFormatRowMajor + matrixFormatBlock,
 
@@ -429,7 +430,7 @@ public:
 	size_t GetNumCols() const { return m_numCols; }
 	size_t GetNumElements() const { return m_numRows * m_numCols; }
 	//size_t GetSizeAllocated() const { return m_buffSize; }
-	//size_t GetItemCount() const;
+	size_t GetItemCount() const;
 
 	bool IsEmpty() const { return m_numRows == 0 || m_numCols == 0; }
 	bool HasExternalBuffer() const { return m_extBuffer; }
@@ -538,7 +539,7 @@ void BaseMatrixStorage<ElemType>::ZeroInit(MatrixFormat mft, device_t dev)
 template<class ElemType>
 void BaseMatrixStorage<ElemType>::Release(bool all)
 {
-	if (CpuDevice(m_deviceId))
+	if (IsCPU(m_deviceId))
 	{
 		if (m_extBuffer) { m_extBuffer = false; m_pBuffer = nullptr; m_buffSize = 0; }
 		else if (all) { delete[] m_pBuffer; m_pBuffer = nullptr; m_buffSize = 0; }
@@ -1058,13 +1059,13 @@ void BaseMatrixStorage<ElemType>::MakeFullBlockFrom(const BaseMatrixStorage<Elem
 	}
 }
 
-///template<class ElemType>
-///size_t BaseMatrixStorage<ElemType>::GetItemCount() const
-///{
-///	if (IsDenseFormat()) return m_numRows*m_numCols;
-///	if (IsSparseFormat()) return m_compPos[IsRowMajor() ? m_numRows : m_numCols];
-///	return m_blockCnt*(IsRowMajor() ? m_numCols : m_numRows);
-///}
+template<class ElemType>
+size_t BaseMatrixStorage<ElemType>::GetItemCount() const
+{
+	if (IsDenseFormat()) return m_numRows*m_numCols;
+	if (IsSparseFormat()) return m_compPos[IsRowMajor() ? m_numRows : m_numCols];
+	return m_blockCnt*(IsRowMajor() ? m_numCols : m_numRows);
+}
 
 template<class ElemType>
 void BaseMatrixStorage<ElemType>::GetBlockId(vector<size_t>& v) const
@@ -1441,7 +1442,7 @@ string BaseMatrixStorage<ElemType>::GetInfo(bool all) const
 					+ (m_format & matrixFormatSparse ? "s":"d")
 					+ (m_format & matrixFormatRowMajor ? "r":"c");
 	// device
-	if (GpuDevice(m_deviceId)) { sprintf_s(sz, sizeof(sz), "  GPU-%d", m_deviceId); s += sz; }
+	if (IsGPU(m_deviceId)) { sprintf_s(sz, sizeof(sz), "  GPU-%d", m_deviceId); s += sz; }
 	else if (m_deviceId==CPUDEVICE) s += "  CPU";
 	else if (m_deviceId==DEVICE_NOTSET) s += "  NotSet";
 	else if (m_deviceId==DEVICE_AUTO) s += "  Auto";
@@ -1616,6 +1617,8 @@ public:
 	size_t GetNumStorageCols() const { return m_sob->GetNumCols(); }
 	size_t GetNumElements() const { return m_numRows * m_numCols; }
 	size_t GetDiagSize() const { return m_numRows < m_numCols ? m_numRows : m_numCols; }
+	size_t GetItemCount() const { return (IsDenseFormat()) ? m_numRows*m_numCols : m_sob->GetItemCount(); }
+	size_t NzCount() const { return GetItemCount(); }
 
 	bool IsDenseFormat() const { return m_sob->IsDenseFormat(); }
 	bool IsSparseFormat() const { return m_sob->IsSparseFormat(); }
@@ -1659,15 +1662,6 @@ public:
 
 	//index_t* GetBlockPos() const { return m_sob->GetBlockPos() + m_sliceOffset; }
 	//ElemType* GetNzValues() { return m_sob->GetNzValues(); }
-
-	//void SetFormat(MatrixFormat mft) { m_sob->SetFormat(mft); }
-	//void SetDeviceId(device_t dev) { m_sob->SetDeviceId(dev); }
-
-	//void SetNumRows(size_t numRows) { m_numRows = numRows; }
-	//void SetNumCols(size_t numCols) { m_numCols = numCols; }
-	//void SetNumStorageRows(size_t rows) { m_sob->SetNumRows(rows); }
-	//void SetNumStorageCols(size_t cols) { m_sob->SetNumCols(cols); }
-	//void SetSizeAllocated(size_t alloc) { m_sob->SetSizeAllocated(alloc); }
 
 	void SetSlice(size_t offset, size_t len);
 	void SetColumnSlice(size_t offset, size_t len);

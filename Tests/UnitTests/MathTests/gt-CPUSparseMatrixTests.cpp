@@ -29,6 +29,7 @@ static void TestSetValues(MatrixFormat mft)
 	SparseMatrix m1(mft);
 	std::array<float, 12> array = { 0, 2, 0, 4, 0, 6, 0, 8, 0, 10, 0, 12 };
 	m1.Assign(3, 4, array.data());
+	ASSERT_EQ(m1.GetItemCount(), (mft & matrixFormatBlock ? 12:6));
 
 	cout << "\t\tmatrix " << m1.FormatStr() << endl;
 
@@ -50,6 +51,7 @@ static void TestSetValues(MatrixFormat mft)
 
 	m1.Init(MatrixFormat(mft | matrixFormatRowMajor));
 	m1.Assign(3, 4, array.data());
+	ASSERT_EQ(m1.GetItemCount(), (mft & matrixFormatBlock ? 12:6));
 	ASSERT_EQ(m1(0,0), 0);
 	ASSERT_EQ(m1(0,1), 4);
 	ASSERT_EQ(m1(0,2), 0);
@@ -97,7 +99,7 @@ TEST_F(CPUSparseMatrixTests, ColumnSlice)
 
 TEST_F(CPUSparseMatrixTests, MakeFullBlock)
 {
-	SparseMatrix sm(4,6); Random(sm,12);
+	SparseMatrix sm(4,6,0); Random(sm,12);
 	DenseMatrix dm(sm.CopyToDense(),true);
 	sm.ConvertToFullBlock();
 	ASSERT_EQ(sm.GetFormat(), matrixFormatSparseBSC);
