@@ -155,6 +155,54 @@ void BaseMatrix<ElemType>::CopyToFullBlock(BaseMatrix<ElemType>& mat) const
 }
 
 template<class ElemType>
+size_t BaseMatrix<ElemType>::CopyToArray(ElemType* p, size_t n) const
+{
+	MatrixFormat mft = GetFormat();
+	size_t nc = (mft & matrixFormatRowMajor) ? m_numRows : m_numCols;
+	size_t nr = (mft & matrixFormatRowMajor) ? m_numCols : m_numRows;
+	size_t nsz = nc*nr; if (nsz==0) return 0;
+	if (n>nsz) n = nsz; else nsz = n;
+
+	int mmf = mft & matrixFormatSparseBlock;
+	if (mmf == matrixFormatDense)
+	{
+		memcpy(p, GetData(), n*sizeof(ElemType));
+	}
+	else if (mmf == matrixFormatSparse)
+	{
+		const index_t* compPos = GetPrimePos();
+		if (compPos[nc]-compPos[0] == 0) return 0;
+
+		const index_t* compId = GetCompId();
+		const ElemType* pBuffer = GetBuffer();
+		ElemType* po = (ElemType*)memset(p, 0, n*sizeof(ElemType));
+		for (size_t j=0; j<nc; ++j)
+		{
+			size_t ns = compPos[j], ne = compPos[j+1];
+			for (size_t k=ns; k<ne; ++k) { size_t i = compId[k]; if (i<n) po[i] = pBuffer[k]; }
+			if (n>nr) { po += nr; n -= nr; continue; }
+			break;
+		}
+	}
+	else
+	{
+		if (m_sob->GetBlockCount()==0) return 0;
+
+		const index_t* compPos = GetPrimePos();
+		const ElemType* pBuffer = GetBuffer();
+		ElemType* po = (ElemType*)memset(p, 0, n*sizeof(ElemType));
+		for (size_t j=0; j<nc; ++j)
+		{
+			size_t k = compPos[j];
+			if (k!=string::npos) memcpy(po, pBuffer+k*nr, min(n,nr)*sizeof(ElemType));
+			if (n>nr) { po += nr; n -= nr; continue; }
+			break;
+		}
+	}
+	return nsz;
+}
+
+template<class ElemType>
 bool BaseMatrix<ElemType>::IsEqualTo(const BaseMatrix<ElemType>& m, ElemType thresh) const
 {
 	if (m.m_numRows!=m_numRows || m.m_numCols!=m_numCols) return false;

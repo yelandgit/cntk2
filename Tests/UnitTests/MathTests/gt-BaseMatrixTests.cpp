@@ -286,6 +286,55 @@ TEST_F(BaseMatrixTests, Assign)
 	ASSERT_TRUE(m1.GetBuffer()==m3.GetBuffer());
 }
 
+TEST_F(BaseMatrixTests, CopyToArray)
+{
+	float data[12];
+	BaseMatrix<float> m;
+	std::array<float, 12> array = { 0, 2, 0, 4, 0, 6, 0, 8, 0, 10, 0, 12 };
+
+	// dense
+	m.Init(matrixFormatDense);
+	m.Assign(3, 4, array.data());
+	memset(data, 0xff, sizeof(data));
+	size_t n = m.CopyToArray(data, sizeof(data)/sizeof(float));
+	ASSERT_EQ(n, 12);
+	ASSERT_TRUE(memcmp(data, array.data(), n*sizeof(float))==0);
+
+	m.SetSlice(1,2);
+	memset(data, 0xff, sizeof(data));
+	n = m.CopyToArray(data, sizeof(data)/sizeof(float));
+	ASSERT_EQ(n, 6);
+	ASSERT_TRUE(memcmp(data, array.data()+3, n*sizeof(float))==0);
+
+	// sparse
+	m.Init(matrixFormatSparseCSC);
+	m.Assign(3, 4, array.data());
+	memset(data, 0xff, sizeof(data));
+	n = m.CopyToArray(data, sizeof(data)/sizeof(float));
+	ASSERT_EQ(n, 12);
+	ASSERT_TRUE(memcmp(data, array.data(), n*sizeof(float))==0);
+
+	m.SetSlice(1,2);
+	memset(data, 0xff, sizeof(data));
+	n = m.CopyToArray(data, sizeof(data)/sizeof(float));
+	ASSERT_EQ(n, 6);
+	ASSERT_TRUE(memcmp(data, array.data()+3, n*sizeof(float))==0);
+
+	// block
+	m.Init(matrixFormatSparseBSC);
+	m.Assign(3, 4, array.data());
+	memset(data, 0xff, sizeof(data));
+	n = m.CopyToArray(data, sizeof(data)/sizeof(float));
+	ASSERT_EQ(n, 12);
+	ASSERT_TRUE(memcmp(data, array.data(), n*sizeof(float))==0);
+
+	m.SetSlice(1,2);
+	memset(data, 0xff, sizeof(data));
+	n = m.CopyToArray(data, sizeof(data)/sizeof(float));
+	ASSERT_EQ(n, 6);
+	ASSERT_TRUE(memcmp(data, array.data()+3, n*sizeof(float))==0);
+}
+
 static void TestCopyTo(MatrixFormat mft)
 {
 	BaseMatrix<float> m1, m2;
