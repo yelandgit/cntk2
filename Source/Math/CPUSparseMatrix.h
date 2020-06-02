@@ -51,6 +51,7 @@ public:
 	void ConvertToFullBlock() { CPUSparseMatrix<ElemType> sm; CopyToFullBlock(sm); Assign(sm,true); }
 
 	CPUSparseMatrix<ElemType> Transpose(bool hdr=false) const { CPUSparseMatrix<ElemType> sm; TransposeTo(sm); return sm; }
+	CPUSparseMatrix<ElemType>& AssignTransposeOf(const CPUSparseMatrix<ElemType>& a) { if (&a!=this) Assign(a.Transpose(), true); return *this; }
 
 ///	void MaskColumnsValue(const CPUMatrix<char>& mask, ElemType val, size_t mcols);
 ///

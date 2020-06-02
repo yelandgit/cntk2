@@ -672,6 +672,26 @@ TEST_F(CPUMatrixTests, SetValues)
 	ASSERT_NEAR(m1.SumOfElements(), static_cast<double>(m1.GetNumElements()), 1);
 }
 
+TEST_F(CPUMatrixTests, SetColumn)
+{
+	std::array<float, 12> ref1 = {0, 0, 0, 0, 0, 0, 3, 3, 3, 0, 0, 0};
+	std::array<float, 12> ref2 = {0, 0, 0, 0, 0, 0, 7, 8, 9, 0, 0, 0};
+
+	CPUSingleMatrix m1(3,4);
+	foreach_coord(i,j,m1)
+		ASSERT_EQ(m1.GetItem(i,j), 0);
+
+	m1.SetColumn(2, 3);
+	ASSERT_EQ(memcmp(m1.GetData(), ref1.data(), m1.GetNumElements()*sizeof(float)), 0);
+
+	m1.SetColumn(2, ref2.data()+6);
+	ASSERT_EQ(memcmp(m1.GetData(), ref2.data(), m1.GetNumElements()*sizeof(float)), 0);
+
+	CPUSingleMatrix m2(3, 1, ref1.data()+6);
+	m1.SetColumn(2, m2);
+	ASSERT_EQ(memcmp(m1.GetData(), ref1.data(), m1.GetNumElements()*sizeof(float)), 0);
+}
+
 TEST_F(CPUMatrixTests, Transpose)
 {
 	CPUDoubleMatrix m0(2, 3);

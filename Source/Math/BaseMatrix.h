@@ -1649,7 +1649,9 @@ public:
 	void CopyToSparse(BaseMatrix<ElemType>& mat) const;
 	void CopyToBlock(BaseMatrix<ElemType>& mat) const;
 	void CopyToFullBlock(BaseMatrix<ElemType>& mat) const;
+
 	size_t CopyToArray(ElemType* p, size_t n) const;		// copy to dense
+	ElemType* CopyToArray() const;
 
 	bool IsEqualTo(const BaseMatrix<ElemType>& m, ElemType thresh=1.e-8) const;
 	int  Compare(const BaseMatrix<ElemType>& mat) const;

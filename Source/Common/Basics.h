@@ -452,37 +452,29 @@ namespace Microsoft { namespace MSR { namespace CNTK {
 ///    bool operator()(const S1& left, const S2& right) const { return CompareCI(left, right) < 0; }
 ///};
 
-// ----------------------------------------------------------------------------
-// random collection of stuff we needed at some place
-// ----------------------------------------------------------------------------
+template <class T>
+class ArrayRef
+{
+    T*			pdata;
+    size_t		count;
 
-// Array class
-// Wrapper that holds pointer to data, as well as size
-///template <class T>
-///class ArrayRef
-///{
-///    T* elements; // Array of type T
-///    size_t count;
-///
-///public:
-///    ArrayRef(T* elementsIn, size_t sizeIn) { elements = elementsIn; count = sizeIn; }
-///    ArrayRef(const ArrayRef& other) = delete;
-///    ArrayRef(ArrayRef&& other) = delete;
-///
-///    ArrayRef& operator=(const ArrayRef& rhs) = delete;
-///    ArrayRef& operator=(ArrayRef&& rhs) = delete;
-///
-///    size_t size()  const { return count; }
-///    void setSize(size_t size) { count = size; }
-///
-///    T* data() const { return elements; }
-///
-///    T operator[](size_t i) const { if (i >= size()) LogicError("ArrayRef: index overflow"); return elements[i]; }
-///    T& operator[](size_t i) { if (i >= count) LogicError("ArrayRef: index overflow"); return elements[i]; }
-///
-///    const T* begin() const { return data(); }
-///    const T* end() const { return data() + size(); }
-///};
+public:
+    ArrayRef(T* p, size_t n) { pdata = p; count = n; }
+    ArrayRef(const ArrayRef& other) = delete;
+    ArrayRef(ArrayRef&& other) = delete;
+
+    ArrayRef& operator=(const ArrayRef& rhs) = delete;
+    ArrayRef& operator=(ArrayRef&& rhs) = delete;
+
+    size_t size() const { return count; }
+    T* data() const { return pdata; }
+
+    T operator[](size_t i) const { if (i>=size()) LogicError("ArrayRef; out of range"); return pdata[i]; }
+    T& operator[](size_t i) { if (i>=count) LogicError("ArrayRef; out of range"); return pdata[i]; }
+
+    const T* begin() const { return pdata; }
+    const T* end() const { return pdata + count; }
+};
 
 // TODO: maybe change to type id of an actual thing we pass in
 // TODO: is this header appropriate?

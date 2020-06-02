@@ -170,12 +170,12 @@ size_t BaseMatrix<ElemType>::CopyToArray(ElemType* p, size_t n) const
 	}
 	else if (mmf == matrixFormatSparse)
 	{
+		ElemType* po = (ElemType*)memset(p, 0, n*sizeof(ElemType));
 		const index_t* compPos = GetPrimePos();
 		if (compPos[nc]-compPos[0] == 0) return 0;
 
 		const index_t* compId = GetCompId();
 		const ElemType* pBuffer = GetBuffer();
-		ElemType* po = (ElemType*)memset(p, 0, n*sizeof(ElemType));
 		for (size_t j=0; j<nc; ++j)
 		{
 			size_t ns = compPos[j], ne = compPos[j+1];
@@ -186,11 +186,11 @@ size_t BaseMatrix<ElemType>::CopyToArray(ElemType* p, size_t n) const
 	}
 	else
 	{
+		ElemType* po = (ElemType*)memset(p, 0, n*sizeof(ElemType));
 		if (m_sob->GetBlockCount()==0) return 0;
 
 		const index_t* compPos = GetPrimePos();
 		const ElemType* pBuffer = GetBuffer();
-		ElemType* po = (ElemType*)memset(p, 0, n*sizeof(ElemType));
 		for (size_t j=0; j<nc; ++j)
 		{
 			size_t k = compPos[j];
@@ -200,6 +200,16 @@ size_t BaseMatrix<ElemType>::CopyToArray(ElemType* p, size_t n) const
 		}
 	}
 	return nsz;
+}
+
+template<class ElemType>
+ElemType* BaseMatrix<ElemType>::CopyToArray() const
+{
+	if (IsEmpty()) return nullptr;
+	size_t n = m_numRows * m_numCols;
+	ElemType* p = new ElemType[n];
+	CopyToArray(p, n);
+	return p;
 }
 
 template<class ElemType>

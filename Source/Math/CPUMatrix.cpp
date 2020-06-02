@@ -512,7 +512,7 @@ void CPUMatrix<ElemType>::SetValue(ElemType v)
 ///		RuntimeError("MaskColumnsValue; Matrix number of columns must equal 'column mask number of columns * numColsPerMaskEntry'");
 
 ///	auto& us = *this;
-///	long n = (long)columnsMask.GetNumCols(), m = (long) GetNumRows();
+///	long n = (long) columnsMask.GetNumCols(), m = (long) GetNumRows();
 ///#pragma omp parallel for
 ///	for (long j = 0; j < n; j++)
 ///	{
@@ -532,72 +532,76 @@ void CPUMatrix<ElemType>::SetValue(ElemType v)
 ///	}
 ///}
 
-///template <class ElemType>
-///void CPUMatrix<ElemType>::SetColumn(const ElemType* colPointer, size_t j)
-///{
-///	if (IsEmpty()) LogicError("SetColumn; Matrix is empty");
-///	if (colPointer == NULL) return;
+template <class ElemType>
+void CPUMatrix<ElemType>::SetColumn(size_t col, ElemType val)
+{
+	if (IsEmpty()) return;
+		//LogicError("SetColumn; Matrix is empty");
 
-///	auto& us = *this;
-///	long m = (long) GetNumRows();
-///#pragma omp parallel for
-///	for (long i = 0; i < m4; i += 4)
-///	{
-///		us(i, j) = colPointer[i];
-///		us(i+1, j) = colPointer[i+1];
-///		us(i+2, j) = colPointer[i+2];
-///		us(i+3, j) = colPointer[i+3];
-///	}
-///	for (long i = m4; i < m; i++)
-///		us(i, j) = colPointer[i];
-///}
+	auto& us = *this;
+	long m = (long) GetNumRows();
+	long m4 = m & ~3;
+#pragma omp parallel for
+	// four-way unrolling
+	for (long i = 0; i < m4; i += 4)
+	{
+		us(i, col) = val;
+		us(i+1, col) = val;
+		us(i+2, col) = val;
+		us(i+3, col) = val;
+	}
+	// handle remaining stuffs
+	for (long i = m4; i < m; i++) us(i, col) = val;
+}
 
-///template <class ElemType>
-///void CPUMatrix<ElemType>::SetColumn(ElemType val, size_t j)
-///{
-///	if (IsEmpty())
-///		LogicError("SetColumn; Matrix is empty");
+template <class ElemType>
+void CPUMatrix<ElemType>::SetColumn(size_t col, const ElemType* p)
+{
+	if (IsEmpty()) return;
+		//LogicError("SetColumn; Matrix is empty");
+	if (p == NULL) return;
 
-///	auto& us = *this;
-///	long m = (long) GetNumRows();
-///#pragma omp parallel for
-///	// four-way unrolling
-///	for (long i = 0; i < m4; i += 4)
-///	{
-///		us(i, j) = val;
-///		us(i+1, j) = val;
-///		us(i+2, j) = val;
-///		us(i+3, j) = val;
-///	}
-///	// handle remaining stuffs
-///	for (long i = m4; i < m; i++) us(i, j) = val;
-///}
+	auto& us = *this;
+	long m = (long) GetNumRows();
+	long m4 = m & ~3;
+#pragma omp parallel for
+	for (long i = 0; i < m4; i += 4)
+	{
+		us(i, col) = p[i];
+		us(i+1, col) = p[i+1];
+		us(i+2, col) = p[i+2];
+		us(i+3, col) = p[i+3];
+	}
+	for (long i = m4; i < m; i++)
+		us(i, col) = p[i];
+}
 
-///template <class ElemType>
-///void CPUMatrix<ElemType>::SetColumn(const CPUMatrix<ElemType>& valMat, size_t j)
-///{
-///	if (IsEmpty())
-///		LogicError("SetColumn; Matrix is empty");
-///	if (valMat.GetNumRows() != GetNumRows() || valMat.GetNumCols() != 1)
-///		LogicError("The valMat matrix has incorrect number of rows or columns");
+template <class ElemType>
+void CPUMatrix<ElemType>::SetColumn(size_t col, const CPUMatrix<ElemType>& mat)
+{
+	if (IsEmpty()) return;
+		//LogicError("SetColumn; Matrix is empty");
+	if (mat.GetNumRows() != GetNumRows() || mat.GetNumCols() != 1)
+		LogicError("SetColumn; The matrix has incorrect number of rows or columns");
 
-///	auto& us = *this;
-///	long m = (long) GetNumRows();
-///#pragma omp parallel for
-///	// four-way unrolling
-///	for (long i = 0; i < m4; i += 4)
-///	{
-///		us(i, j) = valMat(i, 0);
-///		us(i+1, j) = valMat(i+1, 0);
-///		us(i+2, j) = valMat(i+2, 0);
-///		us(i+3, j) = valMat(i+3, 0);
-///	}
-///	// handle remaining stuffs
-///	for (long i = m4; i < m; i++)
-///	{
-///		us(i, j) = valMat(i, 0);
-///	}
-///}
+	auto& us = *this;
+	long m = (long) GetNumRows();
+	long m4 = m & ~3;
+#pragma omp parallel for
+	// four-way unrolling
+	for (long i = 0; i < m4; i += 4)
+	{
+		us(i, col) = mat(i, 0);
+		us(i+1, col) = mat(i+1, 0);
+		us(i+2, col) = mat(i+2, 0);
+		us(i+3, col) = mat(i+3, 0);
+	}
+	// handle remaining stuffs
+	for (long i = m4; i < m; i++)
+	{
+		us(i, col) = mat(i, 0);
+	}
+}
 
 template <class ElemType>
 void CPUMatrix<ElemType>::SetValue(const CPUMatrix<ElemType>& mat)
@@ -3548,7 +3552,7 @@ void CPUMatrix<ElemType>::VectorMin(CPUMatrix<ElemType>& minIndexes, CPUMatrix<E
 ///		fprintf(stderr, "%s ", matrixName);
 ///	fprintf(stderr, "(%lu, %lu)", (unsigned long)GetNumRows(), (unsigned long)GetNumCols());
 ///	if (rowFirst != 0 || colFirst != 0 || (size_t)(rowLast + 1) != GetNumRows() || (size_t)(colLast + 1) != GetNumCols())
-///		fprintf(stderr, " [%ld:%ld, %ld:%ld]", (long)rowFirst, (long)rowLast, (long)colFirst, (long)colLast);
+///		fprintf(stderr, " [%ld:%ld, %ld:%ld]", (long) rowFirst, (long) rowLast, (long) colFirst, (long) colLast);
 ///	fprintf(stderr, " ######\n\n");
 
 ///	if (IsEmpty())
@@ -5895,7 +5899,7 @@ CPUMatrix<ElemType> CPUMatrix<ElemType>::RandomGaussian(size_t rows, size_t cols
 ///		//            Resize(a.GetNumRows(), a.GetNumCols());
 ///	}
 
-///	// long m = (long)GetNumRows(), n = (long)GetNumCols();  // a and b are of size (1,n)
+///	// long m = (long) GetNumRows(), n = (long) GetNumCols();  // a and b are of size (1,n)
 ///	long n = (long) GetNumCols(); // a and b are of size (1,n)
 ///#pragma omp parallel for
 ///	for (long j = 0; j < n; j++)

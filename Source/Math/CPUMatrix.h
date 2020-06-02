@@ -49,7 +49,7 @@ public:
 
 public:
 	void SetValue(ElemType v);
-	void SetValue(const CPUMatrix<ElemType>& mat);
+	void SetValue(const CPUMatrix<ElemType>& mat);		// set + transpose if needed
 	//void SetValue(const GPUMatrix<ElemType>& mat);
 	//void SetValue(const CPUSparseMatrix<ElemType>& mat);
 	//void SetValue(const GPUSparseMatrix<ElemType>& mat);
@@ -60,8 +60,8 @@ public:
 	CPUMatrix<ElemType>& PutColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t len);
 
 	CPUMatrix<ElemType> Diagonal() const;
-//	CPUSparseMatrix<ElemType> CopyToSparse() const { CPUSparseMatrix<ElemType> sm; Base::CopyToSparse(sm); return sm; }
-//	CPUSparseMatrix<ElemType> CopyToBlock() const { CPUSparseMatrix<ElemType> sm; Base::CopyToBlock(sm); return sm; }
+	CPUSparseMatrix<ElemType> CopyToSparse() const { CPUSparseMatrix<ElemType> sm; Base::CopyToSparse(sm); return sm; }
+	CPUSparseMatrix<ElemType> CopyToBlock() const { CPUSparseMatrix<ElemType> sm; Base::CopyToBlock(sm); return sm; }
 
 //	void CopyColumnsStrided(const CPUMatrix<ElemType>& fromMatrix, size_t numCols, size_t srcNumColsStride, size_t destNumColsStride);
 
@@ -96,10 +96,10 @@ public:
 	inline ElemType GetFirstItem() const { return GetData()[0]; }
 
 //	void MaskColumnsValue(const CPUMatrix<char>& columnsMask, ElemType val, size_t numColsPerMaskEntry);
-//
-//	void SetColumn(const ElemType* colPointer, size_t colInd);
-//	void SetColumn(const CPUMatrix<ElemType>& valMat, size_t colInd);
-//	void SetColumn(ElemType val, size_t j);
+
+	void SetColumn(size_t col, ElemType val);
+	void SetColumn(size_t col, const ElemType* p);
+	void SetColumn(size_t col, const CPUMatrix<ElemType>& mat);
 
 	void SetDiagonalValue(ElemType v);
 	void SetDiagonalValue(const CPUMatrix<ElemType>& vector);
