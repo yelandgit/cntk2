@@ -86,7 +86,7 @@ TEST_F(CPUSparseMatrixTests, ColumnSlice)
 	sm0.Allocate(m*n);
 
 	RandomSeedFixture rsf;
-	dm0.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
+	dm0.SetUniformRandomValue(-1, 1, rsf.GetSeed());
 	foreach_coord (row, col, dm0)
 		sm0.PutItem(row, col, dm0(row,col));
 
@@ -145,79 +145,76 @@ TEST_F(CPUSparseMatrixTests, Diagonal)
 	TestDiagonal(matrixFormatSparseBSC);
 }
 
-///TEST_F(CPUSparseMatrixTests, MultiplyAndAdd)
-///{
-///	const size_t m = 100;
-///	const size_t n = 50;
-///	
-///	DenseMatrix dm0(m, n);
-///	RandomSeedFixture rsf;
-///	dm0.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
-///
-///	DenseMatrix dm1(m, n);
-///	dm1.SetUniformRandomValue(-300, 1, rsf.IncrementCounter());
-///	dm1.InplaceTruncateBottom(0);
-///
-///	SparseMatrix sm1(matrixFormatSparseCSC, m, n, 0);
-///	foreach_coord(row, col, dm1)
-///		if (dm1(row, col) != 0)
-///			sm1.SetValue(row, col, dm1(row, col));
-///
-///	DenseMatrix dm2(m, n);
-///	dm2.SetUniformRandomValue(-200, 1, rsf.IncrementCounter());
-///	dm2.InplaceTruncateBottom(0);
-///
-///	SparseMatrix sm2(matrixFormatSparseCSC, m, n, 0);
-///	foreach_coord(row, col, dm2)
-///		if (dm2(row, col) != 0)
-///			sm2.SetValue(row, col, dm2(row, col));
-///
-///	// generate SparseBlockCol matrix
-///	DenseMatrix dmMul(m, m);
-///	DenseMatrix::MultiplyAndAdd(dm0, false, dm1, true, dmMul);
-///
-///	SparseMatrix smMul(matrixFormatSparseBSC, m, m, 0);
-///	SparseMatrix::MultiplyAndAdd(1, dm0, false, sm1, true, smMul);
-///
-///	foreach_coord(row, col, dmMul)
-///	{
-///		ASSERT_TRUE(abs(smMul(row, col) - dmMul(row, col)) < c_epsilonFloatE4);
-///	}
-///
-///	SparseMatrix::MultiplyAndAdd(1, dm0, false, sm2, true, smMul);
-///	DenseMatrix::MultiplyAndAdd(dm0, false, dm2, true, dmMul);
-///
-///	foreach_coord(row, col, dmMul)
-///	{
-///		ASSERT_TRUE(abs(smMul(row, col) - dmMul(row, col)) < c_epsilonFloatE4);
-///	}
-///}
-///
-///TEST_F(CPUSparseMatrixTests, DoGatherColumnsOf)
-///{
-///	const size_t m = 100;
-///	const size_t n = 50;
-///
-///	DenseMatrix dm(m, n);
-///	RandomSeedFixture rsf;
-///	dm.SetUniformRandomValue(-200, 1, rsf.IncrementCounter());
-///	dm.InplaceTruncateBottom(0);
-///
-///	SparseMatrix sm(matrixFormatSparseCSC, m, n, 0);
-///	foreach_coord(row, col, dm)
-///		if (dm(row, col) != 0) sm.SetValue(row, col, dm(row, col));
-///
-//////	std::vector<double> indexValue(n);
-//////	for(size_t i = 0; i < n; i++) indexValue[i] = i % 3 ? (double)i : -1;
-//////	DenseMatrix index(1, n, indexValue.data());
-//////
-//////	SparseMatrix sm2(matrixFormatSparseCSC, m, n, 0);
-//////	sm2.DoGatherColumnsOf(0, index, sm, 1);
-//////
-//////	for (size_t i = 1; i < sm2.GetNumCols() + 1; i++)
-//////		ASSERT_TRUE(sm2.ColLocation()[i] >= sm2.ColLocation()[i-1]);
-///}
-///
+TEST_F(CPUSparseMatrixTests, MultiplyAndAdd)
+{
+	const size_t m = 100;
+	const size_t n = 50;
+	
+	DenseMatrix dm0(m, n);
+	RandomSeedFixture rsf;
+	dm0.SetUniformRandomValue(-1, 1, rsf.GetSeed());
+
+	DenseMatrix dm1(m, n);
+	dm1.SetUniformRandomValue(-300, 1, rsf.GetSeed());
+	dm1.InplaceTruncateBottom(0);
+
+	SparseMatrix sm1(matrixFormatSparseCSC);
+	sm1.SetValue(m, n, dm1.GetData());
+
+	DenseMatrix dm2(m, n);
+	dm2.SetUniformRandomValue(-200, 1, rsf.GetSeed());
+	dm2.InplaceTruncateBottom(0);
+
+	SparseMatrix sm2(matrixFormatSparseCSC);
+	sm2.SetValue(m, n, dm2.GetData());
+
+	// generate SparseBlockCol matrix
+	DenseMatrix dmMul(m, m);
+	DenseMatrix::MultiplyAndAdd(dm0, false, dm1, true, dmMul);
+
+	SparseMatrix smMul(m, m, 0, matrixFormatSparseBSC);
+	SparseMatrix::MultiplyAndAdd(1, dm0, false, sm1, true, smMul);
+	foreach_coord(row, col, dmMul)
+	{
+		ASSERT_TRUE(abs(smMul(row, col) - dmMul(row, col)) < c_epsilonFloatE4);
+	}
+
+	DenseMatrix::MultiplyAndAdd(dm0, false, dm2, true, dmMul);
+	SparseMatrix::MultiplyAndAdd(1, dm0, false, sm2, true, smMul);
+	foreach_coord(row, col, dmMul)
+	{
+		ASSERT_TRUE(abs(smMul(row, col) - dmMul(row, col)) < c_epsilonFloatE4);
+	}
+}
+
+TEST_F(CPUSparseMatrixTests, DoGatherColumnsOf)
+{
+	size_t m = 100;
+	size_t n = 50;
+
+	DenseMatrix dm(m, n);
+	RandomSeedFixture rsf;
+	std::vector<float> idxValue(n);
+	for (size_t j=0; j<n; ++j) idxValue[j] = (j % 3) ? float(j) : -1;
+	DenseMatrix idx(1, n, idxValue.data());
+
+	SparseMatrix sm1(matrixFormatSparseCSC);
+	dm.SetUniformRandomValue(-300, 1, rsf.GetSeed());
+	dm.InplaceTruncateBottom(0);
+	sm1.SetValue(m, n, dm.GetData());
+
+	SparseMatrix sm2(matrixFormatSparseCSC);
+	dm.SetUniformRandomValue(-200, 1, rsf.GetSeed());
+	dm.InplaceTruncateBottom(0);
+	sm2.SetValue(m, n, dm.GetData());
+
+	DenseMatrix dm1(sm1.CopyToDense(),true);
+	DenseMatrix dm2(sm2.CopyToDense(),true);
+	dm2.DoGatherColumnsOf(1, dm1, idx, 1);
+	sm2.DoGatherColumnsOf(1, sm1, idx, 1);
+	ASSERT_TRUE(sm2.IsEqualTo(dm2));
+}
+
 ///TEST_F(CPUSparseMatrixTests, OneHot)
 ///{
 ///	const size_t num_class = 6;

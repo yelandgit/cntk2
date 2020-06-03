@@ -86,6 +86,24 @@ void BaseMatrix<ElemType>::SetSlice(size_t start, size_t len)
 }
 
 template<class ElemType>
+size_t BaseMatrix<ElemType>::GetBlockCount() const
+{
+	MatrixFormat mft = m_sob->GetFormat();
+	size_t nc = (mft & matrixFormatRowMajor) ? m_numRows : m_numCols;
+	size_t nr = (mft & matrixFormatRowMajor) ? m_numCols : m_numRows;
+
+	int mmf = mft & matrixFormatSparseBlock;
+	if (mmf==matrixFormatDense) return nc;
+	if (mmf==matrixFormatSparseBlock) return m_sob->GetBlockCount();
+
+	size_t n = 0;
+	const index_t* compPos = GetPrimePos();
+	for (size_t j=0; j<nc; ++j) if (compPos[j]<compPos[j+1]) ++n;
+	return n;
+}
+
+
+template<class ElemType>
 void BaseMatrix<ElemType>::SetColumnSlice(size_t start, size_t len)
 {
 	MatrixFormat mft = m_sob->GetFormat();
@@ -94,6 +112,24 @@ void BaseMatrix<ElemType>::SetColumnSlice(size_t start, size_t len)
 	if (mft & matrixFormatSparse) m_sliceOffset += start;
 	else m_sliceOffset += start * m_numRows;
 	m_numCols = len;
+}
+
+template<class ElemType>
+void BaseMatrix<ElemType>::GetData(ElemType* p, size_t id) const
+{
+	bool rmf = IsRowMajor();
+	if (rmf) { if (id>=m_numRows) InvalidArgument("GetData; id=%lu is out of range [%lu,]", id, m_numRows); }
+	else if (id>=m_numCols) InvalidArgument("GetData; id=%lu is out of range [,%lu]", id, m_numCols);
+	m_sob->GetData(p, m_sliceOffset+id);
+}
+
+template<class ElemType>
+void BaseMatrix<ElemType>::PutData(const ElemType* p, size_t id)
+{
+	bool rmf = IsRowMajor();
+	if (rmf) { if (id>=m_numRows) InvalidArgument("PutData; id=%lu is out of range [%lu,]", id, m_numRows); }
+	else if (id>=m_numCols) InvalidArgument("PutData; id=%lu is out of range [,%lu]", id, m_numCols);
+	m_sob->PutData(p, m_sliceOffset+id);
 }
 
 template<class ElemType>
@@ -213,17 +249,20 @@ ElemType* BaseMatrix<ElemType>::CopyToArray() const
 }
 
 template<class ElemType>
-bool BaseMatrix<ElemType>::IsEqualTo(const BaseMatrix<ElemType>& m, ElemType thresh) const
+bool BaseMatrix<ElemType>::IsEqualTo(const BaseMatrix<ElemType>& m, ElemType thresh, bool view) const
 {
-	if (m.m_numRows!=m_numRows || m.m_numCols!=m_numCols) return false;
-
+	if (m.m_numRows!=m_numRows || m.m_numCols!=m_numCols)
+	{
+		if (view) cout << "*** [" << m_numRows << "," << m_numCols << "] vs [" << m.GetNumRows() << "," << m.GetNumCols() << "]" << endl;
+		return false;
+	}
 	size_t n = 0;
 	for (size_t j=0; j<m_numCols; ++j)
 	for (size_t i=0; i<m_numRows; ++i)
 	{
 		if (abs(GetItem(i,j)-m.GetItem(i,j)) <= thresh) continue;
 		float x = float(GetItem(i,j)), y = float(m.GetItem(i,j));
-		cout << "*** different item [" << i << "," << j << "] " << x << " / " << y << "  d=" << abs(x-y) << endl;
+		if (view) cout << "*** different item [" << i << "," << j << "] " << x << " / " << y << "  d=" << abs(x-y) << endl;
 		if (++n==10) return false;
 	}
 	return (n==0);

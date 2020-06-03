@@ -81,24 +81,25 @@ CPUMatrix<ElemType> CPUMatrix<ElemType>::GetColumnSlice(size_t start, size_t col
 }
 
 template <class ElemType>
-CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t len)
+CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignColumnSlice(const CPUMatrix<ElemType>& from, size_t start, size_t len)
 {
-	CPUMatrix<ElemType> c(fromMatrix, true);
+	CPUMatrix<ElemType> c(from, true);
 	c.SetSlice(start, len); c.CopyToDense(*this);
 	return *this;
 }
 
 template <class ElemType>
-CPUMatrix<ElemType>& CPUMatrix<ElemType>::PutColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t len)
+CPUMatrix<ElemType>& CPUMatrix<ElemType>::PutColumnSlice(size_t start, const CPUMatrix<ElemType>& from, size_t len)
 {
-	if (len > fromMatrix.GetNumCols())
-		InvalidArgument("The slice (%lu) is out of source range %lu)", len, fromMatrix.GetNumCols());
+	if (len == 0) len = from.GetNumCols();
+	else if (len > from.GetNumCols())
+		InvalidArgument("The slice (%lu) is out of source range %lu)", len, from.GetNumCols());
 	if (start + len > m_numCols)
 		LogicError("The slice (%lu+%lu) is out of destination range (%lu)", start, len, m_numCols);
-	if (m_numRows != fromMatrix.m_numRows)
-		LogicError("Different number of rows = %lu / %lu", fromMatrix.m_numRows, m_numRows);
+	if (m_numRows != from.m_numRows)
+		LogicError("Different number of rows = %lu / %lu", from.m_numRows, m_numRows);
 
-	memcpy(GetData() + start*m_numRows, fromMatrix.GetData(), len*m_numRows*sizeof(ElemType));
+	memcpy(GetData() + start*m_numRows, from.GetData(), len*m_numRows*sizeof(ElemType));
 	return *this;
 }
 
@@ -413,46 +414,41 @@ CPUMatrix<ElemType>& CPUMatrix<ElemType>::AssignTransposeOf(const CPUMatrix<Elem
 	return *this;
 }
 
-//// dst[i] = src[i] * alpha + dst[i] * beta
-//// scale a column vector and add it to another
-//// The usual special case: If beta = 0, then dst[] is not read, and may be uninitialized or NaN.
-///template <class ElemType>
-///static void ScaleAndAddColumn(ElemType beta, ElemType* dst, const ElemType* src, size_t numRows, ElemType alpha)
-///{
-///	if (alpha != 1) // rare case: just do the full thing
-///		for (size_t i = 0; i < numRows; i++) dst[i] = beta * dst[i] + alpha * src[i];
-///	else if (beta == 1) // used in backprop
-///		for (size_t i = 0; i < numRows; i++) dst[i] += src[i];
-///	else if (beta == 0) // plain assignment
-///		memcpy(dst, src, sizeof(ElemType) * numRows);
-///	else // alpha=1, arbitrary beta: also rare case
-///		for (size_t i = 0; i < numRows; i++) dst[i] = beta * dst[i] + src[i];
-///}
+// dst[i] = alpha*src[i] + beta*dst[i]
+template <class ElemType>
+static void ScaleAndAddColumn(ElemType beta, ElemType* dst, const ElemType* src, size_t rows, ElemType alpha)
+{
+	if (alpha != 1) for (size_t j=0; j<rows; ++j) dst[j] = beta*dst[j] + alpha*src[j];	// rare case
+	else if (beta==1) for (size_t j=0; j<rows; ++j) dst[j] += src[j];					// usualy backprop
+	else if (beta==0) memcpy(dst, src, rows*sizeof(ElemType));							// assignment
+	else for (size_t j=0; j<rows; ++j) dst[j] = beta*dst[j] + src[j];					// rare case
+}
 
-//// *this[:,j] = a[:,idx[j]] * alpha + *this[:,j] * beta
-///template <class ElemType>
-///CPUMatrix<ElemType>& CPUMatrix<ElemType>::DoGatherColumnsOf(ElemType beta, const CPUMatrix<ElemType>& idx, const CPUMatrix<ElemType>& a, ElemType alpha)
-///{
-///	if (idx.GetNumRows() != 1) // index is 1-dimensional only
-///		InvalidArgument("DoGatherColumnsOf: Map must be a row vector");
+// this[:,j] = alpha*a[:,idx[j]] + beta*this[:,j]
+template <class ElemType>
+CPUMatrix<ElemType>& CPUMatrix<ElemType>::DoGatherColumnsOf(ElemType alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& idx, ElemType beta)
+{
+	if (idx.GetNumRows()!=1)
+		InvalidArgument("DoGatherColumnsOf; Map must be a row vector");
 
-///	if (beta) VerifySize(a.GetNumRows(), idx.GetNumCols());
-///	else Resize(a.GetNumRows(), idx.GetNumCols());
+	if (beta) VerifySize(a.GetNumRows(), idx.GetNumCols(), "DoGatherColumnsOf");
+	else { Reset(); Resize(a.GetNumRows(), idx.GetNumCols()); }
 
-///	auto& us = *this;
-///	// race-condition consideration: Since this loops over independent output columns, this has no race condition. Cf. DoScatterColumnsOf().
-///#pragma omp parallel for // TODO: Depending in circumstance, it may be more efficient to parallelize over rows.
-///	foreach_column(jOut, us)
-///	{
-///		auto jInF = idx(0, jOut);						// this is the column we need to get
-///		if (std::isnan(jInF) || jInF < 0) continue;		// negative index means gap
-///		size_t jIn = (size_t)jInF;
-///		if (jIn >= a.GetNumCols())
-///			InvalidArgument("DoGatherColumnsOf: Map out of bounds. %ld >= %ld", (long int)jIn, (long int)a.GetNumCols());
-///		ScaleAndAddColumn(beta, &us(0,jOut), &a(0,jIn), us.GetNumRows(), alpha);
-///	}
-///	return *this;
-///}
+	auto& us = *this;
+	const ElemType* pi = idx.GetData();
+	const ElemType* pa = a.GetData();
+	ElemType* pout = GetData();
+#pragma omp parallel for
+	for (size_t j=0; j<m_numCols; ++j)
+	{
+		if (std::isnan(pi[j]) || pi[j] < 0) continue;
+		size_t i = size_t(pi[j]);
+		if (i >= a.GetNumCols())
+			InvalidArgument("DoGatherColumnsOf; Map id=%lu out of range=%lu", i, a.GetNumCols());
+		ScaleAndAddColumn(beta, pout+j*m_numRows, pa+i*m_numRows, m_numRows, alpha);
+	}
+	return *this;
+}
 
 //// *this[:,idx[j]] = a[:,j] * alpha + *this[:,idx[j]] * beta
 ///template <class ElemType>

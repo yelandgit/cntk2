@@ -318,41 +318,63 @@ public:
 	bool IsColMajor() const { return (format & matrixFormatRowMajor)==0; }
 
 	void Init(int fmt) { format = fmt; sorted = false; clear(); }
+	void AddColumn(size_t col, const ElemType* p, size_t rows);
 	void push_back(const ElemItem<ElemType>& val) { Base::push_back(val); sorted = false; }
-	void SetSorted() { sorted = true; }
 
-	void SortByRows()
-	{
-		if (sorted && IsRowMajor()) return;
-		if (size()>1) std::sort(begin(), end(), [](const ElemItem<ElemType>& a, const ElemItem<ElemType>& b)
-													{ return (a.row==b.row) ? (a.col<b.col) : (a.row<b.row); });
-		format |= matrixFormatRowMajor;
-		sorted = true;
-	}
-	void SortByCols()
-	{
-		if (sorted && IsColMajor()) return;
-		if (size()>1) std::sort(begin(), end(), [](const ElemItem<ElemType>& a, const ElemItem<ElemType>& b)
-													{ return (a.col==b.col) ? (a.row<b.row) : (a.col<b.col); });
-		format &= ~matrixFormatRowMajor;
-		sorted = true;
-	}
-	void ViewIndex(ostream& os, int limit=16) const
-	{
-		int n = 0;
-		for (const_iterator i=begin(); i!=end(); ++i)
-		{
-			os << " (" << (*i).row << "," << (*i).col << ")";
-			if (++n==limit) { os << endl; n = 0; }
-		}
-		if (n) os << endl;
-	}
-	void View(ostream& os) const
-	{
-		for (const_iterator i=begin(); i!=end(); ++i)
-			os << "\t" << (*i).row << "\t" << (*i).col << "\t" << float((*i).value) << endl;
-	}
+	void SetSorted() { sorted = true; }
+	void SortByRows();
+	void SortByCols();
+
+	void ViewIndex(ostream& os, int limit=16) const;
+	void View(ostream& os) const;
 };
+
+template<class ElemType>
+void SparseData<ElemType>::AddColumn(size_t col, const ElemType* p, size_t rows)
+{
+	if (empty()) sorted = true;
+	for (size_t j=0; j<rows; ++j,++p)
+		if (*p) Base::push_back(ElemItem<ElemType>(j,col,*p));
+}
+
+template<class ElemType>
+void SparseData<ElemType>::SortByRows()
+{
+	if (sorted && IsRowMajor()) return;
+	if (size()>1) std::sort(begin(), end(), [](const ElemItem<ElemType>& a, const ElemItem<ElemType>& b)
+												{ return (a.row==b.row) ? (a.col<b.col) : (a.row<b.row); });
+	format |= matrixFormatRowMajor;
+	sorted = true;
+}
+
+template<class ElemType>
+void SparseData<ElemType>::SortByCols()
+{
+	if (sorted && IsColMajor()) return;
+	if (size()>1) std::sort(begin(), end(), [](const ElemItem<ElemType>& a, const ElemItem<ElemType>& b)
+												{ return (a.col==b.col) ? (a.row<b.row) : (a.col<b.col); });
+	format &= ~matrixFormatRowMajor;
+	sorted = true;
+}
+
+template<class ElemType>
+void SparseData<ElemType>::ViewIndex(ostream& os, int limit) const
+{
+	int n = 0;
+	for (const_iterator i=begin(); i!=end(); ++i)
+	{
+		os << " (" << (*i).row << "," << (*i).col << ")";
+		if (++n==limit) { os << endl; n = 0; }
+	}
+	if (n) os << endl;
+}
+
+template<class ElemType>
+void SparseData<ElemType>::View(ostream& os) const
+{
+	for (const_iterator i=begin(); i!=end(); ++i)
+		os << "\t" << (*i).row << "\t" << (*i).col << "\t" << float((*i).value) << endl;
+}
 
 //==============================================================================
 //		BaseMatrixStorage
@@ -450,6 +472,9 @@ public:
 	void PutItem(size_t row, size_t col, ElemType val, size_t offset=0);
 
 	ElemType& Item(size_t row, size_t col, size_t offset=0);
+
+	void GetData(ElemType* p, size_t id) const;
+	void PutData(const ElemType* p, size_t id);
 
 	void GetSparseData(SparseData<ElemType>& v, size_t offset=0, size_t len=0) const;
 	void PutSparseData(const SparseData<ElemType>& spd);
@@ -651,7 +676,6 @@ void BaseMatrixStorage<ElemType>::Create(size_t rows, size_t cols, ElemType* p, 
 	int k = (m_format & matrixFormatRowMajor ? 1:0) + (flags & matrixFormatRowMajor ? 1:0);
 	if (k==1) { Transpose(rows,cols,p,flags); return; }
 
-	//m_format = MatrixFormat(m_format | (flags & matrixFormatRowMajor));
 	if (IsDenseFormat())
 	{
 		if (flags & matrixFlagExternalBuffer)
@@ -1291,6 +1315,56 @@ ElemType& BaseMatrixStorage<ElemType>::Item(size_t row, size_t col, size_t offse
 }
 
 template <class ElemType>
+void BaseMatrixStorage<ElemType>::GetData(ElemType* p, size_t id) const
+{
+	bool rmf = IsRowMajor();
+	size_t nc = (rmf) ? m_numRows : m_numCols;
+	size_t nr = (rmf) ? m_numCols : m_numRows;
+	if (id>=nc) { memset(p, 0, nr*sizeof(ElemType)); return; }
+
+	int mmf = m_format & matrixFormatSparseBlock;
+	if (mmf==matrixFormatDense) memcpy(p, m_pBuffer+id*nr, nr*sizeof(ElemType));
+	else if (mmf==matrixFormatSparse)
+	{
+		memset(p, 0, nr*sizeof(ElemType));
+		size_t ns = m_compPos[id], ne = m_compPos[id+1];
+		for (size_t k=ns; k<ne; ++k) p[m_compId[k]] = m_pBuffer[k];
+	}
+	else
+	{
+		size_t k = m_compPos[id];
+		if (k==string::npos) memset(p, 0, nr*sizeof(ElemType));
+		else memcpy(p, m_pBuffer+k*nr, nr*sizeof(ElemType));
+	}
+}
+
+template <class ElemType>
+void BaseMatrixStorage<ElemType>::PutData(const ElemType* p, size_t id)
+{
+	bool rmf = IsRowMajor();
+	size_t nc = (rmf) ? m_numRows : m_numCols;
+	size_t nr = (rmf) ? m_numCols : m_numRows;
+	if (id>=nc) return;
+
+	int mmf = m_format & matrixFormatSparseBlock;
+	if (mmf==matrixFormatDense) memcpy(m_pBuffer+id*nr, p, nr*sizeof(ElemType));
+	else if (mmf==matrixFormatSparse)
+	{
+		for (size_t j=0; j<nr; ++j) if (*p++) PutItem(j, id, p[-1]);
+	}
+	else
+	{
+		size_t k = m_compPos[id];
+		if (k==string::npos)
+		{
+			size_t m = (m_blockCnt+1)*nr; if (m > m_buffSize) Allocate(m);
+			m_compPos[id] = index_t(k = m_blockCnt++);
+		}
+		memcpy(m_pBuffer+k*nr, p, nr*sizeof(ElemType));
+	}
+}
+
+template <class ElemType>
 void BaseMatrixStorage<ElemType>::GetSparseData(SparseData<ElemType>& spd, size_t offset, size_t len) const
 {
 	bool rmf = IsRowMajor();
@@ -1618,6 +1692,7 @@ public:
 	size_t GetNumElements() const { return m_numRows * m_numCols; }
 	size_t GetDiagSize() const { return m_numRows < m_numCols ? m_numRows : m_numCols; }
 	size_t GetItemCount() const { return (IsDenseFormat()) ? m_numRows*m_numCols : m_sob->GetItemCount(); }
+	size_t GetBlockCount() const;
 	size_t NzCount() const { return GetItemCount(); }
 
 	bool IsDenseFormat() const { return m_sob->IsDenseFormat(); }
@@ -1653,11 +1728,8 @@ public:
 	size_t CopyToArray(ElemType* p, size_t n) const;		// copy to dense
 	ElemType* CopyToArray() const;
 
-	bool IsEqualTo(const BaseMatrix<ElemType>& m, ElemType thresh=1.e-8) const;
+	bool IsEqualTo(const BaseMatrix<ElemType>& m, ElemType thresh=1.e-8, bool view=false) const;
 	int  Compare(const BaseMatrix<ElemType>& mat) const;
-
-	// sparse format
-	size_t GetBlockCount() const { return m_sob->GetBlockCount(); }
 
 	//index_t* GetCompPos() const { return m_sob->GetCompPos(); }
 	index_t* GetPrimePos() const { return m_sob->GetCompPos() + m_sliceOffset; }
@@ -1668,6 +1740,9 @@ public:
 
 	void SetSlice(size_t offset, size_t len);
 	void SetColumnSlice(size_t offset, size_t len);
+
+	void GetData(ElemType* p, size_t id) const;
+	void PutData(const ElemType* p, size_t id);
 
 	// gpu
 	//void* GetTempHostBuffer() const { return m_sob->GetTempHostBuffer(); }
@@ -1703,10 +1778,8 @@ public:
 	// same as VerifyResizable() except for the error message. Could be folded into one.
 	void VerifyMigratable(const char* func) const
 	{
-		if (!m_sob.unique())
-			LogicError("%s; Cannot migrate the matrix between devices with slice", func);
-		if (m_sob->HasExternalBuffer())
-			LogicError("%s; Cannot migrate the matrix between devices with external buffer", func);
+		if (!m_sob.unique()) LogicError("%s; Cannot migrate the matrix between devices with slice", func);
+		if (m_sob->HasExternalBuffer()) LogicError("%s; Cannot migrate the matrix between devices with external buffer", func);
 	}
 	// This is needed for Sparse Matrices to ensure they can write to the matrix. Note: writing to slices is not currently supported
 	//void VerifyWritable(const char* function) const

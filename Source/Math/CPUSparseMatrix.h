@@ -38,7 +38,7 @@ public:
 
 public:
 	void SetValue(const CPUSparseMatrix<ElemType>& mat);
-	void SetValue(size_t rows, size_t cols, ElemType* p, int flags=matrixFlagNone);
+	void SetValue(size_t rows, size_t cols, ElemType* p, int flags=matrixFlagNone) { Assign(rows, cols, p, flags); }
 
 	void SetDiagonalValue(ElemType v);
 	void SetDiagonalValue(const CPUMatrix<ElemType>& v);
@@ -57,13 +57,12 @@ public:
 ///
 ///	CPUSparseMatrix<ElemType>& AssignOneHot(const CPUMatrix<ElemType>& a, vector<size_t>& shape, size_t axis);
 
-///	CPUSparseMatrix<ElemType>& DoGatherColumnsOf(ElemType beta, const CPUMatrix<ElemType>& idx, const CPUSparseMatrix<ElemType>& a, ElemType alpha);
-///	CPUSparseMatrix<ElemType>& DoScatterColumnsOf(ElemType beta, const CPUMatrix<ElemType>& idx, const CPUSparseMatrix<ElemType>& a, ElemType alpha) { NOT_IMPLEMENTED }
-///
-///	ElemType* Data() const;
-///
-///	size_t BufferSize() const { return GetSizeAllocated() * sizeof(ElemType); }
-///	size_t GetNumElemAllocated() const { return GetSizeAllocated(); }
+	CPUSparseMatrix<ElemType>& DoGatherColumnsOf(ElemType alpha, const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& idx, ElemType beta);
+///	CPUSparseMatrix<ElemType>& DoScatterColumnsOf(ElemType alpha, const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& idx, ElemType beta) { NOT_IMPLEMENTED }
+
+	//ElemType* Data() const;
+	//size_t BufferSize() const { return GetSizeAllocated() * sizeof(ElemType); }
+	//size_t GetNumElemAllocated() const { return GetSizeAllocated(); }
 
 ///	void SetGaussianRandomValue(ElemType /*mean*/, ElemType /*sigma*/, unsigned long /*seed*/)
 ///	{
@@ -81,11 +80,11 @@ public:
 ///	static void MultiplyAndWeightedAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& lhs, bool transposeA,
 ///										const CPUMatrix<ElemType>& rhs, bool transposeB,
 ///										ElemType beta, CPUMatrix<ElemType>& c) { NOT_IMPLEMENTED }
-///	// Dense * Sparse -> Sparse
-///	static void MultiplyAndAdd(ElemType alpha, const CPUMatrix<ElemType>& a, bool transposeA,
-///										const CPUSparseMatrix<ElemType>& b, bool transposeB,
-///										CPUSparseMatrix<ElemType>& c);
-///
+	// Dense * Sparse -> Sparse
+	static void MultiplyAndAdd(ElemType alpha, const CPUMatrix<ElemType>& a, bool transposeA,
+										const CPUSparseMatrix<ElemType>& b, bool transposeB,
+										CPUSparseMatrix<ElemType>& c);
+
 ///	static void ColumnwiseScaleAndWeightedAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& v, ElemType beta, CPUMatrix<ElemType>& c);
 ///
 ///	static void Scale(ElemType alpha, CPUSparseMatrix<ElemType>& rhs);

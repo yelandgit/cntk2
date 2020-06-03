@@ -26,11 +26,6 @@ RandomSeedFixture::RandomSeedFixture()
 	s_counter = 0;
 }
 
-unsigned long RandomSeedFixture::IncrementCounter()
-{
-	return ++s_counter;
-}
-
 // If this is not done, some math test fail (for instance, ScaleAndAdd(a,b,c);
 // produces different results from Scale(a,b); c+=b;)
 // Please, note that the setting is not limited by the lifespan 

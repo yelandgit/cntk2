@@ -56,8 +56,8 @@ public:
 	void SetValue(size_t rows, size_t cols, ElemType* p, int flags = matrixFlagNone);
 
 	CPUMatrix<ElemType>  GetColumnSlice(size_t start, size_t len) const;
-	CPUMatrix<ElemType>& AssignColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t len);
-	CPUMatrix<ElemType>& PutColumnSlice(const CPUMatrix<ElemType>& fromMatrix, size_t start, size_t len);
+	CPUMatrix<ElemType>& AssignColumnSlice(const CPUMatrix<ElemType>& from, size_t start, size_t len);
+	CPUMatrix<ElemType>& PutColumnSlice(size_t start, const CPUMatrix<ElemType>& from, size_t len=0);
 
 	CPUMatrix<ElemType> Diagonal() const;
 	CPUSparseMatrix<ElemType> CopyToSparse() const { CPUSparseMatrix<ElemType> sm; Base::CopyToSparse(sm); return sm; }
@@ -115,8 +115,8 @@ public:
 	CPUMatrix<ElemType> Transpose();
 	CPUMatrix<ElemType>& AssignTransposeOf(const CPUMatrix<ElemType>& a);
 
-//	CPUMatrix<ElemType>& DoGatherColumnsOf (ElemType beta, const CPUMatrix<ElemType>& idx, const CPUMatrix<ElemType>& a, ElemType alpha);
-//	CPUMatrix<ElemType>& DoScatterColumnsOf(ElemType beta, const CPUMatrix<ElemType>& idx, const CPUMatrix<ElemType>& a, ElemType alpha);
+	CPUMatrix<ElemType>& DoGatherColumnsOf (ElemType alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& idx, ElemType beta);
+//	CPUMatrix<ElemType>& DoScatterColumnsOf(ElemType alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& idx, ElemType beta);
 
 	CPUMatrix<ElemType>& operator+=(ElemType alpha);
 	CPUMatrix<ElemType>  operator+(ElemType alpha) const;

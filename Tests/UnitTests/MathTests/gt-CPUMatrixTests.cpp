@@ -300,7 +300,6 @@ TEST_F(CPUMatrixTests, MultiplyAndDiv)
 
 TEST_F(CPUMatrixTests, ElementOperations)
 {
-	// TODO: consider splitting this large test
 	CPUDoubleMatrix m0(2, 3);
 	m0(0, 0) = 1;
 	m0(0, 1) = 2;
@@ -564,6 +563,40 @@ TEST_F(CPUMatrixTests, ElementOperations)
 	ASSERT_TRUE(m3.IsEqualTo(m2, c_epsilonFloatE4));
 }
 
+TEST_F(CPUMatrixTests, DoGatherColumnsOf)
+{
+	RandomSeedFixture rsf;
+
+	CPUDoubleMatrix m1(4,6), m2(4,6);
+	m1.SetUniformRandomValue(-1, 1, rsf.GetSeed());
+	m2.SetUniformRandomValue(-2, 2, rsf.GetSeed());
+
+	CPUDoubleMatrix idx(1,6);
+	for (size_t j=0; j<idx.GetNumCols(); ++j) idx(0,j) = double(j);
+
+	CPUDoubleMatrix m3(m1);
+	m3.DoGatherColumnsOf(1, m2, idx, 0);
+	ASSERT_TRUE(m3.IsEqualTo(m2));
+
+	m3.SetValue(m1);
+	m3.DoGatherColumnsOf(1, m2, idx, 1);
+	CPUDoubleMatrix m4 = m2 + m1;
+	ASSERT_TRUE(m3.IsEqualTo(m4));
+
+	m3.SetValue(m1);
+	m3.DoGatherColumnsOf(0.5, m2, idx, 2);
+	m4 = m2*0.5 + m1*2;
+	ASSERT_TRUE(m3.IsEqualTo(m4));
+
+	m3.SetValue(m1);
+	idx.SetValue(-1); idx.PutItem(0, 0, 2);
+	m3.DoGatherColumnsOf(0.5, m2, idx, 2);
+	m4 = m1;
+	for (size_t i=0; i<m4.GetNumRows(); ++i)
+		m4.PutItem(i, 0, 0.5*m2.GetItem(i,2) + 2*m4.GetItem(i,0));
+	ASSERT_TRUE(m3.IsEqualTo(m4));
+}
+
 TEST_F(CPUMatrixTests, Norms)
 {
 	CPUDoubleMatrix m0(2, 3);
@@ -664,11 +697,11 @@ TEST_F(CPUMatrixTests, SetValues)
 	m1.SetDiagonalValue(m2);
 	ASSERT_TRUE(m1.IsEqualTo(m0));
 
-	m1.SetUniformRandomValue(-0.01, 0.01, rsf.IncrementCounter());
+	m1.SetUniformRandomValue(-0.01, 0.01, rsf.GetSeed());
 	foreach_coord (i, j, m1) { ASSERT_TRUE(m1(i, j) >= -0.01 && m1(i, j) < 0.01); }
 
 	m1.Resize(20, 20);
-	m1.SetGaussianRandomValue(1.0, 0.01, rsf.IncrementCounter());
+	m1.SetGaussianRandomValue(1.0, 0.01, rsf.GetSeed());
 	ASSERT_NEAR(m1.SumOfElements(), static_cast<double>(m1.GetNumElements()), 1);
 }
 
@@ -758,9 +791,9 @@ TEST_F(CPUMatrixTests, ColumnSlice)
 	size_t n = 20;
 	size_t m = 50;
 
-	CPUDoubleMatrix mA(k, n); mA.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
-	CPUDoubleMatrix mB(n, m); mB.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
-	CPUDoubleMatrix mC(k, m); mC.SetUniformRandomValue(-1, 1, rsf.IncrementCounter());
+	CPUDoubleMatrix mA(k, n); mA.SetUniformRandomValue(-1, 1, rsf.GetSeed());
+	CPUDoubleMatrix mB(n, m); mB.SetUniformRandomValue(-1, 1, rsf.GetSeed());
+	CPUDoubleMatrix mC(k, m); mC.SetUniformRandomValue(-1, 1, rsf.GetSeed());
 	CPUDoubleMatrix mD(k, m); mD.SetValue(mC);
 
 	CPUDoubleMatrix::MultiplyAndAdd(mA, false, mB, false, mD);
@@ -999,8 +1032,8 @@ TEST_F(CPUMatrixTests, CPUAssignRepeatOf)
 TEST_F(CPUMatrixTests, CPURowElementOperations)
 {
 	RandomSeedFixture rsf;
-	CPUDoubleMatrix m0 = CPUDoubleMatrix::RandomUniform(20, 28, -1, 1, rsf.IncrementCounter());
-	CPUDoubleMatrix m1 = CPUDoubleMatrix::RandomUniform(1, 28, 1, 2, rsf.IncrementCounter());
+	CPUDoubleMatrix m0 = CPUDoubleMatrix::RandomUniform(20, 28, -1, 1, rsf.GetSeed());
+	CPUDoubleMatrix m1 = CPUDoubleMatrix::RandomUniform(1, 28, 1, 2, rsf.GetSeed());
 
 	CPUDoubleMatrix m2;
 	m2.SetValue(m0);
@@ -1013,8 +1046,8 @@ TEST_F(CPUMatrixTests, CPURowElementOperations)
 TEST_F(CPUMatrixTests, CPUColumnElementOperations)
 {
 	RandomSeedFixture rsf;
-	CPUDoubleMatrix m0 = CPUDoubleMatrix::RandomUniform(20, 28, -1, 1, rsf.IncrementCounter());
-	CPUDoubleMatrix m1 = CPUDoubleMatrix::RandomUniform(20, 1, 1, 2, rsf.IncrementCounter());
+	CPUDoubleMatrix m0 = CPUDoubleMatrix::RandomUniform(20, 28, -1, 1, rsf.GetSeed());
+	CPUDoubleMatrix m1 = CPUDoubleMatrix::RandomUniform(20, 1, 1, 2, rsf.GetSeed());
 
 	CPUDoubleMatrix m2;
 	m2.SetValue(m0);

@@ -43,12 +43,6 @@ void CPUSparseMatrix<ElemType>::SetValue(const CPUSparseMatrix<ElemType>& mat)
 }
 
 template <class ElemType>
-void CPUSparseMatrix<ElemType>::SetValue(size_t rows, size_t cols, ElemType* p, int flags)
-{
-	Assign(rows, cols, p, flags);
-}
-
-template <class ElemType>
 CPUSparseMatrix<ElemType> CPUSparseMatrix<ElemType>::GetColumnSlice(size_t start, size_t len) const
 {
 	CPUSparseMatrix<ElemType> slice(*this, true);
@@ -219,64 +213,77 @@ void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
 ///{
 ///	NOT_IMPLEMENTED;
 ///}
-///
-//// this[:,j] = a[:,idx[j]] * alpha + this[:,j] * beta
-///template <class ElemType>
-///CPUSparseMatrix<ElemType>& CPUSparseMatrix<ElemType>::DoGatherColumnsOf(ElemType beta, const CPUMatrix<ElemType>& idx, const CPUSparseMatrix<ElemType>& a, ElemType alpha)
-///{
-///	VerifyWritable(__func__);
-///
-///	if ((a.GetFormat() != matrixFormatSparseCSC) || (GetFormat() != matrixFormatSparseCSC))
-///		NOT_IMPLEMENTED;
-///
-///	if (idx.GetNumRows() != 1) // index is 1-dimensional only
-///		InvalidArgument("DoGatherColumnsOf: Map must be a row vector");
-///
-///	if (beta != 0)
-///		NOT_IMPLEMENTED;
-///
-///	// Determine the number of non-zero elements
-///	size_t numCols = idx.GetNumCols();
-///	size_t numNonZeroElements = 0;
-///	// TODO: Does it make sense to parallelize this?
-///	for (long j = 0; j < numCols; j++)
-///	{
-///		auto jInF = idx(0, j); // this is the column we need to get
-///		if (std::isnan(jInF) || (jInF < 0))     // negative index means gap
-///			continue;
-///		size_t jIn = (size_t)jInF;
-///
-///		auto start = a.SecondIndexLocation()[jIn];
-///		auto end = a.SecondIndexLocation()[jIn + 1];
-///		numNonZeroElements += (end - start);
-///	}
-///
-///	if (beta == 0)
-///		RequireSizeAndAllocate(a.GetNumRows(), idx.GetNumCols(), numNonZeroElements); // output has same column format as a, but number of columns comes from idx
-///
-///	size_t offset = SecondIndexLocation()[0];
-///	// TODO: Does it make sense to parallelize this?
-///	for (long j = 0; j < numCols; j++)
-///	{
-///		auto jInF = idx(0, j); // this is the column we need to get
-///		if (jInF >= 0)     // negative or nan index means gap, but we still need to update the CompIndex
-///		{
-///			size_t jIn = (size_t)jInF;
-///
-///			auto start = a.SecondIndexLocation()[jIn];
-///			auto end = a.SecondIndexLocation()[jIn + 1];
-///			for (auto p = start; p < end; p++, offset++)
-///			{
-///				GetCompId()[offset] = a.GetCompId()[p];
-///				Buffer()[offset] = a.Buffer()[p] * alpha;
-///			}
-///		}
-///		SecondIndexLocation()[j + 1] = index_t(offset);
-///	}
-///	return *this;
-///}
-///
-//// *this[:,idx[j]] = a[:,j] * alpha + *this[:,idx[j]] * beta
+
+// this[:,j] = a[:,idx[j]] * alpha + this[:,j] * beta
+template <class ElemType>
+CPUSparseMatrix<ElemType>& CPUSparseMatrix<ElemType>::DoGatherColumnsOf(ElemType alpha, const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& idx, ElemType beta)
+{
+	if (idx.GetNumRows()!=1)
+		InvalidArgument("DoGatherColumnsOf; Map must be a row vector");
+
+	if (beta) VerifySize(a.GetNumRows(), idx.GetNumCols(), "DoGatherColumnsOf");
+	else { Reset(); Resize(a.GetNumRows(), idx.GetNumCols()); }
+
+	const ElemType* px = idx.GetData();
+	size_t nca = a.GetNumCols();
+
+	if (GetItemCount()==0 || beta==0)
+	{
+		size_t n = a.GetItemCount();
+		if (n==0 || alpha==0) return *this;
+
+		Allocate(n);
+		const ElemType* pBuffer = a.GetBuffer();
+		const index_t* compPos = a.GetPrimePos();
+		const index_t* compId = a.GetCompId();
+		for (size_t j=0; j<m_numCols; ++j)
+		{
+			if (std::isnan(*px) || *px < 0) { ++px; continue; }
+			size_t i = size_t(*px++);
+			if (i>=nca) RuntimeError("DoGatherColumnsOf; Map id=%lu is out of range [,%lu]", i, nca);
+
+			size_t ns = compPos[i], ne = compPos[i+1];
+			for (size_t k=ns; k<ne; ++k) PutItem(compId[k], j, pBuffer[k]);
+		}
+	}
+	else if (a.GetItemCount()==0 || alpha==0)
+	{
+		ElemType* pBuffer = GetBuffer();
+		index_t* compPos = GetPrimePos();
+		index_t* compId = GetCompId();
+		for (size_t j=0; j<m_numCols; ++j)
+		{
+			if (std::isnan(*px) || *px < 0) { ++px; continue; }
+			size_t i = size_t(*px++);
+			if (i>=nca) RuntimeError("DoGatherColumnsOf; Map id=%lu is out of range [,%lu]", i, nca);
+
+			size_t ns = compPos[i], ne = compPos[i+1];
+			for (size_t k=ns; k<ne; ++k) pBuffer[k] *= beta;
+		}
+	}
+	else
+	{
+		CPUSparseMatrix<ElemType> sm(m_numRows, m_numCols, GetItemCount(), GetFormat());
+		ElemType* pa = new ElemType[2*m_numRows];
+		ElemType* pc = pa + m_numRows;
+		for (size_t j=0; j<m_numCols; ++j,++px)
+		{
+			GetData(pc, j);
+			if (!std::isnan(*px) && *px >= 0)
+			{
+				size_t i = size_t(*px);
+				if (i>=nca) RuntimeError("DoGatherColumnsOf; Map id=%lu is out of range [,%lu]", i, nca);
+				a.GetData(pa, i); for (size_t i=0; i<m_numRows; ++i) pc[i] = alpha*pa[i] + beta*pc[i];
+			}
+			sm.PutData(pc, j);
+		}
+		Assign(sm, true);
+		delete[] pa;
+	}
+	return *this;
+}
+
+// *this[:,idx[j]] = a[:,j] * alpha + *this[:,idx[j]] * beta
 ///template <class ElemType>
 ///CPUSparseMatrix<ElemType>& CPUSparseMatrix<ElemType>::DoScatterColumnsOf(ElemType beta, const CPUMatrix<ElemType>& idx, const CPUSparseMatrix<ElemType>& a, ElemType alpha)
 ///{
@@ -515,107 +522,107 @@ void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
 ///	else if (!transposeA && !transposeB)
 ///		MultiplyDenseAndSparse<ElemType, false /* dense times sparse */, false /* transposeA */, false /*transposeB*/>::MultiplyAndWeightedAdd(alpha, a /*sparse*/, b /* dense */, beta, c /* matrix beeing updated */);
 ///}
-///
-//// c += alpha * lhs * rhs
-//// sparse += alpha * dense * sparse
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::MultiplyAndAdd(ElemType alpha, const CPUMatrix<ElemType>& a, bool transposeA,
-///																const CPUSparseMatrix<ElemType>& b, bool transposeB,
-///																CPUSparseMatrix<ElemType>& c)
-///{
-///	if (a.IsEmpty() || b.IsEmpty())
-///		LogicError("CPUSparseMatrix::MultiplyAndAdd; A or B matrix is empty");
-///	if (b.GetFormat() != matrixFormatSparseCSC)
-///		LogicError("CPUSparseMatrix::MultiplyAndAdd; B matrix is not SparseCSC");
-///
-///	size_t anr = (transposeA) ? a.GetNumCols() : a.GetNumRows();
-///	size_t anc = (transposeA) ? a.GetNumRows() : a.GetNumCols();
-///	size_t bnr = (transposeB) ? b.GetNumCols() : b.GetNumRows();
-///	size_t bnc = (transposeB) ? b.GetNumRows() : b.GetNumCols();
-///
-///	// A(k,m) * B(m,n) --> C(k,n)
-///	if (anc != bnr)
-///		InvalidArgument("CPUSparseMatrix::MultiplyAndAdd; The inner dimensions of a (%lu) and b (%lu) don't match", anc, bnr);
-///
-///	if (c.HasExternalBuffer())
-///		LogicError("CPUSparseMatrix::MultiplyAndAdd; Cannot modify external buffer in matrix");
-///
-///	if (c.IsEmpty()) c.Resize(anr,bnc);
-///	else if (anr!=c.GetNumRows() || bnc!=c.GetNumCols())
-///		InvalidArgument("CPUSparseMatrix::MultiplyAndAdd; Different dimensions of a(,%lu) or b(%lu,) with c(%lu,%lu)", anc, bnr, c.GetNumRows(), c.GetNumCols());
-///	c.ConvertToFullBlock();
-///
-///	ElemType* pdc = c.Data();
-///	const ElemType* pda = a.Buffer();
-///	const ElemType* pdb = b.Buffer();
-///	const index_t* compPos = b.GetPrimePos();
-///	const index_t* compId = b.GetCompId();
-///	const index_t* blockPos = b.GetBlockPos();
-///
-///	anr = a.GetNumRows(); anc = a.GetNumCols();
-///	bnr = b.GetNumRows(); bnc = b.GetNumCols();
-///
-///	int m = (transposeA ? 2:0) + (transposeB ? 1:0);
-///	if (m==0)
-///	{
-///		// C += a * A * B
-///		for (size_t j=0; j<bnc; ++j)
-///		{
-///			size_t ns = compPos[j], ne = compPos[j+1]; if (ns==ne) continue;
-///			ElemType* pc = pdc + j*anr;
-///			for (size_t n=ns; n<ne; ++n)
-///			{
-///				const ElemType* pa = pda + compId[n]*anr;
-///				for (size_t k=0; k<anr; ++k) pc[k] += alpha*pa[k]*pdb[n];
-///			}
-///		}
-///	}
-///	else if (m==1)
-///	{
-///		// C += a * A * Bt
-///		for (size_t j=0; j<bnc; ++j)
-///		{
-///			size_t ns = compPos[j], ne = compPos[j+1]; if (ns==ne) continue;
-///			const ElemType* pa = pda + j*anr;
-///			for (size_t n=ns; n<ne; ++n)
-///			{
-///				ElemType* pc = pdc + compId[n]*anr;
-///				for (size_t k=0; k<anr; ++k) pc[k] += alpha*pa[k]*pdb[n];
-///			}
-///		}
-///	}
-///	else if (m==2)
-///	{
-///		// C += a * At * B
-///		for (size_t j=0; j<bnc; ++j)
-///		{
-///			size_t ns = compPos[j], ne = compPos[j+1]; if (ns==ne) continue;
-///			for (size_t n=ns; n<ne; ++n)
-///			{
-///				ElemType* pc = pdc + j*anc;
-///				const ElemType* pa = pda + compId[n];
-///				for (size_t k=0; k<anc; ++k) { pc[k] += alpha*(*pa)*pdb[n]; pa += anr; }
-///			}
-///		}
-///	}
-///	else
-///	{
-///		// C += a * At * Bt
-///		for (size_t j=0; j<bnc; ++j)
-///		{
-///			size_t ns = compPos[j], ne = compPos[j+1]; if (ns==ne) continue;
-///			for (size_t n=ns; n<ne; ++n)
-///			{
-///				ElemType* pc = pdc + compId[n]*anc;
-///				const ElemType* pa = pda + j;
-///				for (size_t k=0; k<anc; ++k) { pc[k] += alpha*(*pa)*pdb[n]; pa += anr; }
-///			}
-///		}
-///	}
-///}
-///
-////	c[:,j] = alpha * v[j] * a[:,j] + beta * c[:,j]
-////	dense = alpha * vector * sparse + beta * dense
+
+// c += alpha * lhs * rhs
+// sparse += alpha * dense * sparse
+template <class ElemType>
+void CPUSparseMatrix<ElemType>::MultiplyAndAdd(ElemType alpha, const CPUMatrix<ElemType>& a, bool transposeA,
+																const CPUSparseMatrix<ElemType>& b, bool transposeB,
+																CPUSparseMatrix<ElemType>& c)
+{
+	if (a.IsEmpty() || b.IsEmpty())
+		LogicError("CPUSparseMatrix::MultiplyAndAdd; A or B matrix is empty");
+	if (b.GetFormat() != matrixFormatSparseCSC)
+		LogicError("CPUSparseMatrix::MultiplyAndAdd; B matrix is not SparseCSC");
+
+	size_t anr = (transposeA) ? a.GetNumCols() : a.GetNumRows();
+	size_t anc = (transposeA) ? a.GetNumRows() : a.GetNumCols();
+	size_t bnr = (transposeB) ? b.GetNumCols() : b.GetNumRows();
+	size_t bnc = (transposeB) ? b.GetNumRows() : b.GetNumCols();
+
+	// A(k,m) * B(m,n) --> C(k,n)
+	if (anc != bnr)
+		InvalidArgument("CPUSparseMatrix::MultiplyAndAdd; The inner dimensions of a (%lu) and b (%lu) don't match", anc, bnr);
+
+	if (c.HasExternalBuffer())
+		LogicError("CPUSparseMatrix::MultiplyAndAdd; Cannot modify external buffer in matrix");
+
+	if (c.IsEmpty()) c.Resize(anr,bnc);
+	else if (anr!=c.GetNumRows() || bnc!=c.GetNumCols())
+		InvalidArgument("CPUSparseMatrix::MultiplyAndAdd; Different dimensions of a(,%lu) or b(%lu,) with c(%lu,%lu)", anc, bnr, c.GetNumRows(), c.GetNumCols());
+	c.ConvertToFullBlock();
+
+	ElemType* pdc = c.GetData();
+	const ElemType* pda = a.GetBuffer();
+	const ElemType* pdb = b.GetBuffer();
+	const index_t* compPos = b.GetPrimePos();
+	const index_t* compId = b.GetCompId();
+	const index_t* blockPos = b.GetPrimePos();
+
+	anr = a.GetNumRows(); anc = a.GetNumCols();
+	bnr = b.GetNumRows(); bnc = b.GetNumCols();
+
+	int m = (transposeA ? 2:0) + (transposeB ? 1:0);
+	if (m==0)
+	{
+		// C += a * A * B
+		for (size_t j=0; j<bnc; ++j)
+		{
+			size_t ns = compPos[j], ne = compPos[j+1]; if (ns==ne) continue;
+			ElemType* pc = pdc + j*anr;
+			for (size_t n=ns; n<ne; ++n)
+			{
+				const ElemType* pa = pda + compId[n]*anr;
+				for (size_t k=0; k<anr; ++k) pc[k] += alpha*pa[k]*pdb[n];
+			}
+		}
+	}
+	else if (m==1)
+	{
+		// C += a * A * Bt
+		for (size_t j=0; j<bnc; ++j)
+		{
+			size_t ns = compPos[j], ne = compPos[j+1]; if (ns==ne) continue;
+			const ElemType* pa = pda + j*anr;
+			for (size_t n=ns; n<ne; ++n)
+			{
+				ElemType* pc = pdc + compId[n]*anr;
+				for (size_t k=0; k<anr; ++k) pc[k] += alpha*pa[k]*pdb[n];
+			}
+		}
+	}
+	else if (m==2)
+	{
+		// C += a * At * B
+		for (size_t j=0; j<bnc; ++j)
+		{
+			size_t ns = compPos[j], ne = compPos[j+1]; if (ns==ne) continue;
+			for (size_t n=ns; n<ne; ++n)
+			{
+				ElemType* pc = pdc + j*anc;
+				const ElemType* pa = pda + compId[n];
+				for (size_t k=0; k<anc; ++k) { pc[k] += alpha*(*pa)*pdb[n]; pa += anr; }
+			}
+		}
+	}
+	else
+	{
+		// C += a * At * Bt
+		for (size_t j=0; j<bnc; ++j)
+		{
+			size_t ns = compPos[j], ne = compPos[j+1]; if (ns==ne) continue;
+			for (size_t n=ns; n<ne; ++n)
+			{
+				ElemType* pc = pdc + compId[n]*anc;
+				const ElemType* pa = pda + j;
+				for (size_t k=0; k<anc; ++k) { pc[k] += alpha*(*pa)*pdb[n]; pa += anr; }
+			}
+		}
+	}
+}
+
+//	c[:,j] = alpha * v[j] * a[:,j] + beta * c[:,j]
+//	dense = alpha * vector * sparse + beta * dense
 ///template <class ElemType>
 ///void CPUSparseMatrix<ElemType>::ColumnwiseScaleAndWeightedAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& v, ElemType beta, CPUMatrix<ElemType>& c)
 ///{

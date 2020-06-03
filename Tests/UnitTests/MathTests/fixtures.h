@@ -9,7 +9,7 @@ class RandomSeedFixture
     static unsigned long s_counter;
 public:
     RandomSeedFixture();
-    unsigned long IncrementCounter();
+    unsigned long GetSeed() { return ++s_counter; }
 };
 
 class DeterministicCPUAlgorithmsFixture
