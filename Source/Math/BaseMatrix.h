@@ -1350,7 +1350,18 @@ void BaseMatrixStorage<ElemType>::PutData(const ElemType* p, size_t id)
 	if (mmf==matrixFormatDense) memcpy(m_pBuffer+id*nr, p, nr*sizeof(ElemType));
 	else if (mmf==matrixFormatSparse)
 	{
-		for (size_t j=0; j<nr; ++j) if (*p++) PutItem(j, id, p[-1]);
+		if (m_compPos[id] == m_compPos[id+1])
+		{
+			size_t k = m_compPos[id];
+			for (size_t i=0; i<m_numRows; ++i)
+			{
+				if (*p++ == 0) continue;
+				if (k==m_buffSize) Allocate(k + max(nc,nr));
+				m_pBuffer[k] = p[-1]; m_compId[k++] = (index_t)i;
+			}
+			for (size_t j=id+1; j<=nc; ++j) m_compPos[j] = (index_t)k;
+		}
+		else for (size_t j=0; j<nr; ++j) if (*p++) PutItem(j, id, p[-1]);
 	}
 	else
 	{

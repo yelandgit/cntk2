@@ -207,6 +207,11 @@ TEST_F(CPUSparseMatrixTests, DoGatherColumnsOf)
 	dm.SetUniformRandomValue(-200, 1, rsf.GetSeed());
 	dm.InplaceTruncateBottom(0);
 	sm2.SetValue(m, n, dm.GetData());
+	sm2.Resize(m, n);
+
+	//cout << endl
+	//	<< "  " << sm1.GetItemCount() << " items    " << sm1.GetBlockCount() << " blocks" << endl
+	//	<< "  " << sm2.GetItemCount() << " items    " << sm2.GetBlockCount() << " blocks" << endl;
 
 	DenseMatrix dm1(sm1.CopyToDense(),true);
 	DenseMatrix dm2(sm2.CopyToDense(),true);

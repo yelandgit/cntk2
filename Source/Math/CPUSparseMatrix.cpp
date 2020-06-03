@@ -266,16 +266,29 @@ CPUSparseMatrix<ElemType>& CPUSparseMatrix<ElemType>::DoGatherColumnsOf(ElemType
 		CPUSparseMatrix<ElemType> sm(m_numRows, m_numCols, GetItemCount(), GetFormat());
 		ElemType* pa = new ElemType[2*m_numRows];
 		ElemType* pc = pa + m_numRows;
+		const index_t* compPos1 = a.GetPrimePos();
+		const index_t* compPos2 = GetPrimePos();
 		for (size_t j=0; j<m_numCols; ++j,++px)
 		{
-			GetData(pc, j);
+			int upd = 0;
+			if (compPos2[j]<compPos2[j+1]) { GetData(pc, j); ++upd; }
+			else memset(pc, 0, m_numRows*sizeof(ElemType));
+
 			if (!std::isnan(*px) && *px >= 0)
 			{
 				size_t i = size_t(*px);
 				if (i>=nca) RuntimeError("DoGatherColumnsOf; Map id=%lu is out of range [,%lu]", i, nca);
-				a.GetData(pa, i); for (size_t i=0; i<m_numRows; ++i) pc[i] = alpha*pa[i] + beta*pc[i];
+
+				// version 1
+				//a.GetData(pa, i); ++upd;
+				//for (size_t i=0; i<m_numRows; ++i) pc[i] = alpha*pa[i] + beta*pc[i];
+
+				// version 2
+				if (compPos1[i]<compPos1[i+1]) { a.GetData(pa, i); ++upd; }
+				else memset(pa, 0, m_numRows*sizeof(ElemType));
+				if (upd) for (size_t i=0; i<m_numRows; ++i) pc[i] = alpha*pa[i] + beta*pc[i];
 			}
-			sm.PutData(pc, j);
+			if (upd) sm.PutData(pc, j);
 		}
 		Assign(sm, true);
 		delete[] pa;
