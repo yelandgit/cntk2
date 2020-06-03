@@ -149,64 +149,48 @@ void CPUSparseMatrix<ElemType>::SetDiagonalValue(const CPUMatrix<ElemType>& v)
 	}
 }
 
+template <class ElemType>
+CPUSparseMatrix<ElemType>& CPUSparseMatrix<ElemType>::AssignOneHot(const CPUMatrix<ElemType>& a, vector<size_t>& shape, size_t axis)
+{
+	if (a.IsEmpty()) LogicError("AssignOneHot: Matrix a is empty");
+	if (GetFormat() != matrixFormatSparseCSC) LogicError("AssignOneHot: Matrix format is not supported");
+	if (axis >= shape.size()) LogicError("AssignOneHot: axis is not correct");
 
+	int itemSize = 1;
+	for (size_t i=0; i<axis; ++i) itemSize *= (int)shape[i];
+	int numClass = (int)shape[axis];
 
+	size_t nSize = a.GetNumElements();
+	size_t nRows = itemSize * numClass;
+	size_t nCols = nSize / itemSize;
+	//if (m_numRows==0 || m_numRows!=nRows || m_numCols==0 || m_numCols!=nCols)
+	//	LogicError("AssignOneHot: Target matrix size is not correct");
 
+	Reset();
+	Resize(nRows, nCols);
+	Allocate(nSize);
 
+	index_t* compPos = GetPrimePos();
+	index_t* compId = GetCompId();
+	const ElemType* src = a.GetData();
+	ElemType* dst = GetData();
+#pragma omp parallel for
+	for (long j=0; j<nSize; ++j)
+	{
+		int blockId = j / itemSize;	// cid
+		int itemId = j % itemSize;	// rid
+		// for invalid indices, theorically they should not belong to nz elements.
+		// but if we scan the indices to count the valid indices number,
+		// it will be difficult for parallel calculation, especially on GPU.
+		// here we chose to keep those elements in nz element list, but with value 0 an at row 0
+		if (src[j]<0 || src[j]>=numClass) { compId[j] = index_t(itemId); dst[j] = 0; }
+		else { compId[j] = int(src[j])*itemSize + itemId; dst[j] = 1; }
+		if (itemId == 0) compPos[blockId+1] = index_t(itemSize*(blockId+1));
+	}
+	compPos[0] = 0;
 
-
-
-
-
-
-
-
-
-
-
-
-///template <class ElemType>
-///CPUSparseMatrix<ElemType>& CPUSparseMatrix<ElemType>::AssignOneHot(const CPUMatrix<ElemType>& a, vector<size_t>& shape, size_t axis)
-///{
-///	if (a.IsEmpty()) LogicError("AssignOneHot: Matrix a is empty");
-///	if (GetFormat() != matrixFormatSparseCSC) LogicError("AssignOneHot: Matrix format is not supported");
-///	if (axis >= shape.size()) LogicError("AssignOneHot: axis is not correct");
-///
-///	int itemSize = 1;
-///	for (size_t i=0; i<axis; ++i) itemSize *= (int)shape[i];
-///	int numClass = (int)shape[axis];
-///
-///	size_t nSize = a.GetNumElements();
-///	size_t nRows = itemSize * numClass;
-///	size_t nCols = nSize / itemSize;
-///	//if (m_numRows==0 || m_numRows!=nRows || m_numCols==0 || m_numCols!=nCols)
-///	//	LogicError("AssignOneHot: Target matrix size is not correct");
-///
-///	Reset();
-///	Resize(nRows, nCols);
-///	Allocate(nSize);
-///
-///	index_t* compPos = GetCompPos();
-///	index_t* compId = GetCompId();
-///	const ElemType* src = a.Data();
-///	ElemType* dst = Data();
-///#pragma omp parallel for
-///	for (long j=0; j<nSize; ++j)
-///	{
-///		int blockId = j / itemSize;	// cid
-///		int itemId = j % itemSize;	// rid
-///		// for invalid indices, theorically they should not belong to nz elements.
-///		// but if we scan the indices to count the valid indices number,
-///		// it will be difficult for parallel calculation, especially on GPU.
-///		// here we chose to keep those elements in nz element list, but with value 0 an at row 0
-///		if (src[j]<0 || src[j]>=numClass) { compId[j] = index_t(itemId); dst[j] = 0; }
-///		else { compId[j] = int(src[j])*itemSize + itemId; dst[j] = 1; }
-///		if (itemId == 0) compPos[blockId+1] = index_t(itemSize*(blockId+1));
-///	}
-///	compPos[0] = 0;
-///
-///	return *this;
-///}
+	return *this;
+}
 
 ///template <class ElemType>
 ///void CPUSparseMatrix<ElemType>::MaskColumnsValue(const CPUMatrix<char>& mask, ElemType val, size_t mcols)

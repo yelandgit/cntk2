@@ -220,52 +220,57 @@ TEST_F(CPUSparseMatrixTests, DoGatherColumnsOf)
 	ASSERT_TRUE(sm2.IsEqualTo(dm2));
 }
 
-///TEST_F(CPUSparseMatrixTests, OneHot)
-///{
-///	const size_t num_class = 6;
-///	DenseMatrix m0(2, 2);
-///	m0(0, 0) = 1;
-///	m0(0, 1) = 2;
-///	m0(1, 0) = 3;
-///	m0(1, 1) = 4;
-///	
-///	vector<size_t> shape(3);
-///	shape[0] = num_class; shape[1] = 2; shape[2] = 2;
-///
-///	SparseMatrix sm(matrixFormatSparseCSC);
-///	sm.AssignOneHot(m0, shape, 0);
-///	
-///	ASSERT_TRUE(sm.NzCount() == 4);
-///	ASSERT_TRUE(sm(1, 0) == 1);
-///	ASSERT_TRUE(sm(2, 2) == 1);
-///	ASSERT_TRUE(sm(3, 1) == 1);
-///	ASSERT_TRUE(sm(4, 3) == 1);
-///
-///	vector<size_t> shape2(3);
-///	shape2[0] = 2; shape2[1] = num_class; shape2[2] = 2;
-///	SparseMatrix sm2(matrixFormatSparseCSC);
-///	sm2.AssignOneHot(m0, shape2, 1);
-///
-///	ASSERT_TRUE(sm2.NzCount() == 4);
-///	ASSERT_TRUE(sm2(2, 0) == 1);
-///	ASSERT_TRUE(sm2(4, 1) == 1);
-///	ASSERT_TRUE(sm2(7, 0) == 1);
-///	ASSERT_TRUE(sm2(9, 1) == 1);
-///
-///	DenseMatrix dirtyMatrix(2, 2);
-///	dirtyMatrix(0, 0) = 1;
-///	dirtyMatrix(0, 1) = -1;
-///	dirtyMatrix(1, 0) = 7;
-///	dirtyMatrix(1, 1) = 4;
-///	
-///	SparseMatrix sm3(matrixFormatSparseCSC);
-///	sm3.AssignOneHot(dirtyMatrix, shape, 0);
-///
-///	ASSERT_TRUE(sm3.NzCount() == 4);
-///	ASSERT_TRUE(sm3(1, 0) == 1);
-///	ASSERT_TRUE(sm3(0, 2) == 0);
-///	ASSERT_TRUE(sm3(0, 1) == 0);
-///	ASSERT_TRUE(sm3(4, 3) == 1);
-///}
+TEST_F(CPUSparseMatrixTests, AssignOneHot)
+{
+	size_t num_class = 6;
+	DenseMatrix m0(2, 2);
+	m0(0,0) = 1;
+	m0(0,1) = 2;
+	m0(1,0) = 3;
+	m0(1,1) = 4;
+	
+	vector<size_t> shape(3);
+	shape[0] = num_class;
+	shape[1] = 2;
+	shape[2] = 2;
+
+	SparseMatrix sm(matrixFormatSparseCSC);
+	sm.AssignOneHot(m0, shape, 0);
+	
+	ASSERT_EQ(sm.NzCount(), 4);
+	ASSERT_EQ(sm(1,0), 1);
+	ASSERT_EQ(sm(2,2), 1);
+	ASSERT_EQ(sm(3,1), 1);
+	ASSERT_EQ(sm(4,3), 1);
+
+	vector<size_t> shape2(3);
+	shape2[0] = 2;
+	shape2[1] = num_class;
+	shape2[2] = 2;
+
+	SparseMatrix sm2(matrixFormatSparseCSC);
+	sm2.AssignOneHot(m0, shape2, 1);
+
+	ASSERT_EQ(sm2.NzCount(), 4);
+	ASSERT_EQ(sm2(2,0), 1);
+	ASSERT_EQ(sm2(4,1), 1);
+	ASSERT_EQ(sm2(7,0), 1);
+	ASSERT_EQ(sm2(9,1), 1);
+
+	DenseMatrix dirtyMatrix(2, 2);
+	dirtyMatrix(0,0) = 1;
+	dirtyMatrix(0,1) = -1;
+	dirtyMatrix(1,0) = 7;
+	dirtyMatrix(1,1) = 4;
+	
+	SparseMatrix sm3(matrixFormatSparseCSC);
+	sm3.AssignOneHot(dirtyMatrix, shape, 0);
+
+	ASSERT_EQ(sm3.NzCount(), 4);
+	ASSERT_EQ(sm3(1,0), 1);
+	ASSERT_EQ(sm3(0,2), 0);
+	ASSERT_EQ(sm3(0,1), 0);
+	ASSERT_EQ(sm3(4,3), 1);
+}
 
 } } } }

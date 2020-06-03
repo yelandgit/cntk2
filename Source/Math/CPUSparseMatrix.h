@@ -54,8 +54,8 @@ public:
 	CPUSparseMatrix<ElemType>& AssignTransposeOf(const CPUSparseMatrix<ElemType>& a) { if (&a!=this) Assign(a.Transpose(), true); return *this; }
 
 ///	void MaskColumnsValue(const CPUMatrix<char>& mask, ElemType val, size_t mcols);
-///
-///	CPUSparseMatrix<ElemType>& AssignOneHot(const CPUMatrix<ElemType>& a, vector<size_t>& shape, size_t axis);
+
+	CPUSparseMatrix<ElemType>& AssignOneHot(const CPUMatrix<ElemType>& a, vector<size_t>& shape, size_t axis);
 
 	CPUSparseMatrix<ElemType>& DoGatherColumnsOf(ElemType alpha, const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& idx, ElemType beta);
 ///	CPUSparseMatrix<ElemType>& DoScatterColumnsOf(ElemType alpha, const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& idx, ElemType beta) { NOT_IMPLEMENTED }
