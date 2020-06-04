@@ -145,46 +145,138 @@ TEST_F(CPUSparseMatrixTests, Diagonal)
 	TestDiagonal(matrixFormatSparseBSC);
 }
 
+TEST_F(CPUSparseMatrixTests, MultiplyAndWeightedAdd)
+{
+	RandomSeedFixture rsf;
+
+	size_t m = 100;
+	size_t n = 50;
+
+	// dense source
+	DenseMatrix dma(m,n);
+	dma.SetUniformRandomValue(-3, 1, rsf.GetSeed());
+	dma.InplaceTruncateBottom(0);
+
+	DenseMatrix dmb(n,m);
+	dmb.SetUniformRandomValue(-3, 1, rsf.GetSeed());
+	dmb.InplaceTruncateBottom(0);
+
+	DenseMatrix dmc(m,m);
+	dmc.SetUniformRandomValue(-1, 1, rsf.GetSeed());
+	dmc.InplaceTruncateBottom(0);
+
+	// sparse source
+	SparseMatrix sma; sma.SetValue(dma.GetNumRows(), dma.GetNumCols(), dma.GetData());
+	SparseMatrix smb; smb.SetValue(dmb.GetNumRows(), dmb.GetNumCols(), dmb.GetData());
+
+	DenseMatrix dmat(dma.Transpose(),true);
+	DenseMatrix dmbt(dmb.Transpose(),true);
+	SparseMatrix smat(sma.Transpose(),true);
+	SparseMatrix smbt(smb.Transpose(),true);
+
+	// reference
+	DenseMatrix mdd(dmc);
+	DenseMatrix::MultiplyAndWeightedAdd(1, dma, false, dmb, false, 2, mdd);
+	float err = 1e-6f;
+
+	// dense * sparse --> dense
+	DenseMatrix mds(dmc);
+	SparseMatrix::MultiplyAndWeightedAdd(1, dma, false, smb, false, 2, mds);
+	ASSERT_TRUE(mds.IsEqualTo(mdd,err,true));
+
+	mds.SetValue(dmc);
+	SparseMatrix::MultiplyAndWeightedAdd(1, dma, false, smbt, true, 2, mds);
+	ASSERT_TRUE(mds.IsEqualTo(mdd,err,true));
+
+	mds.SetValue(dmc);
+	SparseMatrix::MultiplyAndWeightedAdd(1, dmat, true, smb, false, 2, mds);
+	ASSERT_TRUE(mds.IsEqualTo(mdd,err,true));
+
+	mds.SetValue(dmc);
+	SparseMatrix::MultiplyAndWeightedAdd(1, dmat, true, smbt, true, 2, mds);
+	ASSERT_TRUE(mds.IsEqualTo(mdd,err,true));
+
+	// sparse * dense --> dense
+	DenseMatrix msd(dmc);
+	SparseMatrix::MultiplyAndWeightedAdd(1, sma, false, dmb, false, 2, msd);
+	ASSERT_TRUE(msd.IsEqualTo(mdd, err, true));
+
+	msd.SetValue(dmc);
+	SparseMatrix::MultiplyAndWeightedAdd(1, sma, false, dmbt, true, 2, msd);
+	ASSERT_TRUE(msd.IsEqualTo(mdd, err, true));
+
+	msd.SetValue(dmc);
+	SparseMatrix::MultiplyAndWeightedAdd(1, smat, true, dmb, false, 2, msd);
+	ASSERT_TRUE(msd.IsEqualTo(mdd, err, true));
+
+	msd.SetValue(dmc);
+	SparseMatrix::MultiplyAndWeightedAdd(1, smat, true, dmbt, true, 2, msd);
+	ASSERT_TRUE(msd.IsEqualTo(mdd, err, true));
+}
+
 TEST_F(CPUSparseMatrixTests, MultiplyAndAdd)
 {
-	const size_t m = 100;
-	const size_t n = 50;
-	
-	DenseMatrix dm0(m, n);
 	RandomSeedFixture rsf;
-	dm0.SetUniformRandomValue(-1, 1, rsf.GetSeed());
 
-	DenseMatrix dm1(m, n);
-	dm1.SetUniformRandomValue(-300, 1, rsf.GetSeed());
-	dm1.InplaceTruncateBottom(0);
+	size_t m = 100;
+	size_t n = 50;
 
-	SparseMatrix sm1(matrixFormatSparseCSC);
-	sm1.SetValue(m, n, dm1.GetData());
+	// dense source
+	DenseMatrix dma(m,n);
+	dma.SetUniformRandomValue(-3, 1, rsf.GetSeed());
+	dma.InplaceTruncateBottom(0);
 
-	DenseMatrix dm2(m, n);
-	dm2.SetUniformRandomValue(-200, 1, rsf.GetSeed());
-	dm2.InplaceTruncateBottom(0);
+	DenseMatrix dmb(n,m);
+	dmb.SetUniformRandomValue(-3, 1, rsf.GetSeed());
+	dmb.InplaceTruncateBottom(0);
 
-	SparseMatrix sm2(matrixFormatSparseCSC);
-	sm2.SetValue(m, n, dm2.GetData());
+	// sparse source
+	SparseMatrix sma; sma.SetValue(dma.GetNumRows(), dma.GetNumCols(), dma.GetData());
+	SparseMatrix smb; smb.SetValue(dmb.GetNumRows(), dmb.GetNumCols(), dmb.GetData());
 
-	// generate SparseBlockCol matrix
-	DenseMatrix dmMul(m, m);
-	DenseMatrix::MultiplyAndAdd(dm0, false, dm1, true, dmMul);
+	DenseMatrix dmat(dma.Transpose(),true);
+	DenseMatrix dmbt(dmb.Transpose(),true);
+	SparseMatrix smat(sma.Transpose(),true);
+	SparseMatrix smbt(smb.Transpose(),true);
 
-	SparseMatrix smMul(m, m, 0, matrixFormatSparseBSC);
-	SparseMatrix::MultiplyAndAdd(1, dm0, false, sm1, true, smMul);
-	foreach_coord(row, col, dmMul)
-	{
-		ASSERT_TRUE(abs(smMul(row, col) - dmMul(row, col)) < c_epsilonFloatE4);
-	}
+	// reference
+	DenseMatrix mdd(m,m);
+	DenseMatrix::MultiplyAndAdd(dma, false, dmb, false, mdd);
+	float err = 1e-6f;
 
-	DenseMatrix::MultiplyAndAdd(dm0, false, dm2, true, dmMul);
-	SparseMatrix::MultiplyAndAdd(1, dm0, false, sm2, true, smMul);
-	foreach_coord(row, col, dmMul)
-	{
-		ASSERT_TRUE(abs(smMul(row, col) - dmMul(row, col)) < c_epsilonFloatE4);
-	}
+	// dense * sparse --> dense
+	DenseMatrix mds(m,m);
+	SparseMatrix::MultiplyAndAdd(dma, false, smb, false, mds);
+	ASSERT_TRUE(mds.IsEqualTo(mdd,err,true));
+
+	mds.Reset();
+	SparseMatrix::MultiplyAndAdd(dma, false, smbt, true, mds);
+	ASSERT_TRUE(mds.IsEqualTo(mdd,err,true));
+
+	mds.Reset();
+	SparseMatrix::MultiplyAndAdd(dmat, true, smb, false, mds);
+	ASSERT_TRUE(mds.IsEqualTo(mdd,err,true));
+
+	mds.Reset();
+	SparseMatrix::MultiplyAndAdd(dmat, true, smbt, true, mds);
+	ASSERT_TRUE(mds.IsEqualTo(mdd,err,true));
+
+	// sparse * dense --> dense
+	DenseMatrix msd(m,m);
+	SparseMatrix::MultiplyAndAdd(sma, false, dmb, false, msd);
+	ASSERT_TRUE(msd.IsEqualTo(mdd, err, true));
+
+	msd.Reset();
+	SparseMatrix::MultiplyAndAdd(sma, false, dmbt, true, msd);
+	ASSERT_TRUE(msd.IsEqualTo(mdd, err, true));
+
+	msd.Reset();
+	SparseMatrix::MultiplyAndAdd(smat, true, dmb, false, msd);
+	ASSERT_TRUE(msd.IsEqualTo(mdd, err, true));
+
+	msd.Reset();
+	SparseMatrix::MultiplyAndAdd(smat, true, dmbt, true, msd);
+	ASSERT_TRUE(msd.IsEqualTo(mdd, err, true));
 }
 
 TEST_F(CPUSparseMatrixTests, DoGatherColumnsOf)

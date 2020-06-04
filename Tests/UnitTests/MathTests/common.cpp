@@ -11,14 +11,17 @@ const int c_deviceIdZero = CPUDEVICE;
 const int c_deviceIdZero = 0;
 #endif
 
-const float  c_epsilonFloatE4	= 0.0001f;
-const float  c_epsilonFloatE3	= 0.001f;
-const float  c_epsilonFloatE2	= 0.01f;
 const float  c_epsilonFloatE1	= 0.1f;
+const float  c_epsilonFloatE2	= 0.01f;
+const float  c_epsilonFloatE3	= 0.001f;
+const float  c_epsilonFloatE4	= 0.0001f;
 const float  c_epsilonFloat3E4	= 0.0003f;
 const float  c_epsilonFloat5E4	= 0.0005f;
-const float  c_epsilonFloatE5	= 0.00001f;
-const double c_epsilonDoubleE11	= 0.00000000001;
+const float  c_epsilonFloatE5	= 1e-5f;
+const float  c_epsilonFloatE6	= 1e-6f;
+const float  c_epsilonFloatE7	= 1e-7f;
+const float  c_epsilonFloatE8	= 1e-8f;
+const double c_epsilonDoubleE11	= 1e-11;
 
 //template <>
 //const float Microsoft::MSR::CNTK::Test::Err<float>::Rel = 1e-5f;

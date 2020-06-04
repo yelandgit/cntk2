@@ -246,13 +246,13 @@ enum MatrixFormat : int
 	matrixFormatColMajor		= 0,			// default is column major
 	matrixFormatRowMajor		= 0x0001,		// row major matrix
 	matrixFormatSparse			= 0x0002,		// sparse matrix
-	matrixFormatCompressed		= 0x0004,
+	//matrixFormatCompressed		= 0x0004,
 	matrixFormatBlock			= 0x0008,
 
 	matrixFormatDenseCol		= matrixFormatDense + matrixFormatColMajor,
 	matrixFormatDenseRow		= matrixFormatDense + matrixFormatRowMajor,
-	matrixFormatSparseCSC		= matrixFormatSparse + matrixFormatColMajor + matrixFormatCompressed,
-	matrixFormatSparseCSR		= matrixFormatSparse + matrixFormatRowMajor + matrixFormatCompressed,
+	matrixFormatSparseCSC		= matrixFormatSparse + matrixFormatColMajor,// + matrixFormatCompressed,
+	matrixFormatSparseCSR		= matrixFormatSparse + matrixFormatRowMajor,// + matrixFormatCompressed,
 	matrixFormatSparseBSC		= matrixFormatSparse + matrixFormatColMajor + matrixFormatBlock,
 	matrixFormatSparseBSR		= matrixFormatSparse + matrixFormatRowMajor + matrixFormatBlock,
 

@@ -12,13 +12,16 @@ using namespace Microsoft::MSR::CNTK;
 
 extern const int c_deviceIdZero;
 
+extern const float  c_epsilonFloatE1;
+extern const float  c_epsilonFloatE2;
+extern const float  c_epsilonFloatE3;
 extern const float  c_epsilonFloatE4;
 extern const float  c_epsilonFloat3E4;
 extern const float  c_epsilonFloat5E4;
 extern const float  c_epsilonFloatE5;
-extern const float  c_epsilonFloatE3;
-extern const float  c_epsilonFloatE2;
-extern const float  c_epsilonFloatE1;
+extern const float  c_epsilonFloatE6;
+extern const float  c_epsilonFloatE7;
+extern const float  c_epsilonFloatE8;
 extern const double c_epsilonDoubleE11;
 
 
