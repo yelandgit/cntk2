@@ -281,11 +281,12 @@ TEST_F(CPUSparseMatrixTests, MultiplyAndAdd)
 
 TEST_F(CPUSparseMatrixTests, DoGatherColumnsOf)
 {
+	RandomSeedFixture rsf;
+
 	size_t m = 100;
 	size_t n = 50;
 
 	DenseMatrix dm(m, n);
-	RandomSeedFixture rsf;
 	std::vector<float> idxValue(n);
 	for (size_t j=0; j<n; ++j) idxValue[j] = (j % 3) ? float(j) : -1;
 	DenseMatrix idx(1, n, idxValue.data());
@@ -300,10 +301,6 @@ TEST_F(CPUSparseMatrixTests, DoGatherColumnsOf)
 	dm.InplaceTruncateBottom(0);
 	sm2.SetValue(m, n, dm.GetData());
 	sm2.Resize(m, n);
-
-	//cout << endl
-	//	<< "  " << sm1.GetItemCount() << " items    " << sm1.GetBlockCount() << " blocks" << endl
-	//	<< "  " << sm2.GetItemCount() << " items    " << sm2.GetBlockCount() << " blocks" << endl;
 
 	DenseMatrix dm1(sm1.CopyToDense(),true);
 	DenseMatrix dm2(sm2.CopyToDense(),true);
