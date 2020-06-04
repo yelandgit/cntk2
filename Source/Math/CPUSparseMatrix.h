@@ -87,18 +87,15 @@ public:
 	//								CPUSparseMatrix<ElemType>& c);
 
 ///	static void ColumnwiseScaleAndWeightedAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& v, ElemType beta, CPUMatrix<ElemType>& c);
-///
-///	static void Scale(ElemType alpha, CPUSparseMatrix<ElemType>& rhs);
+
+	static void Scale(ElemType alpha, CPUSparseMatrix<ElemType>& rhs);
 ///	static void ScaleAndAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& lhs, CPUMatrix<ElemType>& c);
 ///
 ///	static bool AreEqual(const CPUSparseMatrix<ElemType>& a, const CPUSparseMatrix<ElemType>& b, ElemType threshold = 1e-8) { NOT_IMPLEMENTED }
 
 	// sum(vec(a).*vec(b))
-///	static ElemType InnerProductOfMatrices(const CPUSparseMatrix<ElemType>& /*a*/, const CPUMatrix<ElemType>& /*b*/)
-///	{
-///		NOT_IMPLEMENTED;
-///	}
-///	static void InnerProduct(const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c, bool isColWise) { NOT_IMPLEMENTED }
+///	static ElemType InnerProductOfMatrices(const CPUSparseMatrix<ElemType>& /*a*/, const CPUMatrix<ElemType>& /*b*/) { NOT_IMPLEMENTED; }
+	static void InnerProduct(const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c, bool isColWise);
 
 ///	static void AddScaledDifference(ElemType /*alpha*/, const CPUSparseMatrix<ElemType>& /*a*/, const CPUMatrix<ElemType>& /*b*/, CPUMatrix<ElemType>& /*c*/,
 ///									bool /*bDefaultZero*/)

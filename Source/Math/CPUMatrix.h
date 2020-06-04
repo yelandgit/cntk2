@@ -14,7 +14,7 @@
 //#include <stdio.h>
 //#include <ctime>
 //#include <limits.h>
-//#include "QuantizedOperations.h"
+#include "QuantizedOperations.h"
 //#include "half.hpp"
 
 //#include "GPUMatrix.h"
@@ -400,13 +400,13 @@ public:
 	static void Multiply(const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c);
 	static void Multiply(const CPUMatrix<ElemType>& a, bool transposeA, const CPUMatrix<ElemType>& b, bool transposeB, CPUMatrix<ElemType>& c);
 	static void MultiplyAndAdd(const CPUMatrix<ElemType>& a, bool transposeA, const CPUMatrix<ElemType>& b, bool transposeB, CPUMatrix<ElemType>& c);
-	static void MultiplyAndWeightedAdd(ElemType alpha, const CPUMatrix<ElemType>& a, bool transposeA, const CPUMatrix<ElemType>& b, bool transposeB, ElemType beta, CPUMatrix<ElemType>& c);
+	static void MultiplyAndWeightedAdd(ElemType alpha, const CPUMatrix<ElemType>& a, bool transposeA, const CPUMatrix<ElemType>& b, bool transposeB, ElemType beta, CPUMatrix<ElemType>& c, shared_ptr<QuantizedMultiplier<ElemType>> pQuantizedMultiplier=nullptr);
+	//static void MultiplyAndWeightedAdd(ElemType alpha, const CPUMatrix<ElemType>& a, bool transposeA, const CPUMatrix<ElemType>& b, bool transposeB, ElemType beta, CPUMatrix<ElemType>& c);
 	static void Multiply1x1AndWeightedAdd(ElemType alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, ElemType beta, CPUMatrix<ElemType>& c);
-	//static void MultiplyAndWeightedAdd(ElemType alpha, const CPUMatrix<ElemType>& a, bool transposeA, const CPUMatrix<ElemType>& b, bool transposeB, ElemType beta, CPUMatrix<ElemType>& c, shared_ptr<QuantizedMultiplier<ElemType>> pQuantizedMultiplier=nullptr);
 	static void ColumnwiseScaleAndWeightedAdd(ElemType alpha, const CPUMatrix<ElemType>& a, const CPUMatrix<ElemType>& v, ElemType beta, CPUMatrix<ElemType>& c);
 
 	static void Scale(ElemType alpha, CPUMatrix<ElemType>& a);
-	//static void Scale(CPUMatrix<ElemType> alpha, CPUMatrix<ElemType>& a);	// alpha must be 1x1
+	static void Scale(CPUMatrix<ElemType> alpha, CPUMatrix<ElemType>& a);	// alpha must be 1x1
 	static void Scale(ElemType alpha, const CPUMatrix<ElemType>& a, CPUMatrix<ElemType>& c);
 
 	static void ScaleAndAdd(ElemType alpha, const CPUMatrix<ElemType>& a, CPUMatrix<ElemType>& c);

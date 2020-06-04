@@ -4614,78 +4614,11 @@ void CPUMatrix<ElemType>::MultiplyAndAdd(const CPUMatrix<ElemType>& a, bool tran
 // Matrix-matrix multiply with col-major matrices (a and b may be transposed)
 //		c = alpha * op(a) * op(b) + beta * c
 
-template <class ElemType>
-void CPUMatrix<ElemType>::MultiplyAndWeightedAdd(ElemType alpha,
-												const CPUMatrix<ElemType>& a, bool transposeA,
-												const CPUMatrix<ElemType>& b, bool transposeB,
-												ElemType beta, CPUMatrix<ElemType>& c)
-{
-	if (a.IsEmpty() || b.IsEmpty()) return;
-
-	int m, n, k, l;
-	int lda, ldb, ldc;
-	CBLAS_TRANSPOSE mklTransA;
-	CBLAS_TRANSPOSE mklTransB;
-
-	if (transposeA)
-	{
-		m = (int)a.GetNumCols();
-		k = (int)a.GetNumRows();
-		lda = k;
-		mklTransA = CBLAS_TRANSPOSE::CblasTrans;
-	}
-	else
-	{
-		m = (int)a.GetNumRows();
-		k = (int)a.GetNumCols();
-		lda = m;
-		mklTransA = CBLAS_TRANSPOSE::CblasNoTrans;
-	}
-
-	if (transposeB)
-	{
-		l = (int)b.GetNumCols();
-		n = (int)b.GetNumRows();
-		ldb = n;
-		mklTransB = CBLAS_TRANSPOSE::CblasTrans;
-	}
-	else
-	{
-		l = (int)b.GetNumRows();
-		n = (int)b.GetNumCols();
-		ldb = l;
-		mklTransB = CBLAS_TRANSPOSE::CblasNoTrans;
-	}
-
-	if (k != l) InvalidArgument("MultiplyAndWeightedAdd; The inner dimensions of A and B must match");
-
-	if (beta == 0) c.Resize(m, n);
-	else c.VerifySize(m, n, "MultiplyAndWeightedAdd");
-
-	ldc = (int)c.GetNumRows();
-	if (std::is_same<ElemType, double>::value)
-	{
-		cblas_dgemm((CBLAS_ORDER) (int)MatrixOrder::ColMajor, mklTransA, mklTransB, m, n, k, alpha, reinterpret_cast<double*>(a.GetData()), lda, 
-														reinterpret_cast<double*>(b.GetData()), ldb, beta, reinterpret_cast<double*>(c.GetData()), ldc);
-	}
-	else if (std::is_same<ElemType, float>::value)
-	{
-#pragma warning(suppress : 4244)
-		cblas_sgemm((CBLAS_ORDER) (int)MatrixOrder::ColMajor, mklTransA, mklTransB, m, n, k, alpha, reinterpret_cast<float*>(a.GetData()), lda,
-														reinterpret_cast<float*>(b.GetData()), ldb, beta, reinterpret_cast<float*>(c.GetData()), ldc);
-	}
-	else
-	{
-		RuntimeError("MultiplyAndWeightedAdd; Unsupported data type");
-	}
-}
-
 //template <class ElemType>
 //void CPUMatrix<ElemType>::MultiplyAndWeightedAdd(ElemType alpha,
 //												const CPUMatrix<ElemType>& a, bool transposeA,
 //												const CPUMatrix<ElemType>& b, bool transposeB,
-//												ElemType beta, CPUMatrix<ElemType>& c,
-//												shared_ptr<QuantizedMultiplier<ElemType>> pQuantizedMultiplier)
+//												ElemType beta, CPUMatrix<ElemType>& c)
 //{
 //	if (a.IsEmpty() || b.IsEmpty()) return;
 //
@@ -4730,32 +4663,99 @@ void CPUMatrix<ElemType>::MultiplyAndWeightedAdd(ElemType alpha,
 //	else c.VerifySize(m, n, "MultiplyAndWeightedAdd");
 //
 //	ldc = (int)c.GetNumRows();
-//	if (pQuantizedMultiplier == nullptr)
+//	if (std::is_same<ElemType, double>::value)
 //	{
-//		if (std::is_same<ElemType, double>::value)
-//		{
-//			cblas_dgemm((CBLAS_ORDER) (int)MatrixOrder::ColMajor, mklTransA, mklTransB, m, n, k, alpha, reinterpret_cast<double*>(a.GetData()), lda, 
-//															reinterpret_cast<double*>(b.GetData()), ldb, beta, reinterpret_cast<double*>(c.GetData()), ldc);
-//		}
-//		else if (std::is_same<ElemType, float>::value)
-//		{
+//		cblas_dgemm((CBLAS_ORDER) (int)MatrixOrder::ColMajor, mklTransA, mklTransB, m, n, k, alpha, reinterpret_cast<double*>(a.GetData()), lda, 
+//														reinterpret_cast<double*>(b.GetData()), ldb, beta, reinterpret_cast<double*>(c.GetData()), ldc);
+//	}
+//	else if (std::is_same<ElemType, float>::value)
+//	{
 //#pragma warning(suppress : 4244)
-//			cblas_sgemm((CBLAS_ORDER) (int)MatrixOrder::ColMajor, mklTransA, mklTransB, m, n, k, alpha, reinterpret_cast<float*>(a.GetData()), lda,
-//															reinterpret_cast<float*>(b.GetData()), ldb, beta, reinterpret_cast<float*>(c.GetData()), ldc);
-//		}
-//		else
-//		{
-//			RuntimeError("MultiplyAndWeightedAdd; Unsupported data type");
-//		}
+//		cblas_sgemm((CBLAS_ORDER) (int)MatrixOrder::ColMajor, mklTransA, mklTransB, m, n, k, alpha, reinterpret_cast<float*>(a.GetData()), lda,
+//														reinterpret_cast<float*>(b.GetData()), ldb, beta, reinterpret_cast<float*>(c.GetData()), ldc);
 //	}
 //	else
 //	{
-//		if (mklTransA == CBLAS_TRANSPOSE::CblasTrans || mklTransB == CBLAS_TRANSPOSE::CblasTrans)
-//			LogicError("MultiplyAndWeightedAdd; Quantized multiplier doesn't support transpose");
-//
-//		pQuantizedMultiplier->Multiply(m, n, k, a.GetData(), b.GetData(), c.GetData());
+//		RuntimeError("MultiplyAndWeightedAdd; Unsupported data type");
 //	}
 //}
+
+template <class ElemType>
+void CPUMatrix<ElemType>::MultiplyAndWeightedAdd(ElemType alpha,
+												const CPUMatrix<ElemType>& a, bool transposeA,
+												const CPUMatrix<ElemType>& b, bool transposeB,
+												ElemType beta, CPUMatrix<ElemType>& c,
+												shared_ptr<QuantizedMultiplier<ElemType>> pQuantizedMultiplier)
+{
+	if (a.IsEmpty() || b.IsEmpty()) return;
+
+	int m, n, k, l;
+	int lda, ldb, ldc;
+	CBLAS_TRANSPOSE mklTransA;
+	CBLAS_TRANSPOSE mklTransB;
+
+	if (transposeA)
+	{
+		m = (int)a.GetNumCols();
+		k = (int)a.GetNumRows();
+		lda = k;
+		mklTransA = CBLAS_TRANSPOSE::CblasTrans;
+	}
+	else
+	{
+		m = (int)a.GetNumRows();
+		k = (int)a.GetNumCols();
+		lda = m;
+		mklTransA = CBLAS_TRANSPOSE::CblasNoTrans;
+	}
+
+	if (transposeB)
+	{
+		l = (int)b.GetNumCols();
+		n = (int)b.GetNumRows();
+		ldb = n;
+		mklTransB = CBLAS_TRANSPOSE::CblasTrans;
+	}
+	else
+	{
+		l = (int)b.GetNumRows();
+		n = (int)b.GetNumCols();
+		ldb = l;
+		mklTransB = CBLAS_TRANSPOSE::CblasNoTrans;
+	}
+
+	if (k != l) InvalidArgument("MultiplyAndWeightedAdd; The inner dimensions of A and B must match");
+
+	if (beta == 0) c.Resize(m, n);
+	else c.VerifySize(m, n, "MultiplyAndWeightedAdd");
+
+	ldc = (int)c.GetNumRows();
+	if (pQuantizedMultiplier == nullptr)
+	{
+		if (std::is_same<ElemType, double>::value)
+		{
+			cblas_dgemm((CBLAS_ORDER) (int)MatrixOrder::ColMajor, mklTransA, mklTransB, m, n, k, alpha, reinterpret_cast<double*>(a.GetData()), lda, 
+															reinterpret_cast<double*>(b.GetData()), ldb, beta, reinterpret_cast<double*>(c.GetData()), ldc);
+		}
+		else if (std::is_same<ElemType, float>::value)
+		{
+#pragma warning(suppress : 4244)
+			cblas_sgemm((CBLAS_ORDER) (int)MatrixOrder::ColMajor, mklTransA, mklTransB, m, n, k, alpha, reinterpret_cast<float*>(a.GetData()), lda,
+															reinterpret_cast<float*>(b.GetData()), ldb, beta, reinterpret_cast<float*>(c.GetData()), ldc);
+		}
+		else
+		{
+			RuntimeError("MultiplyAndWeightedAdd; Unsupported data type");
+		}
+	}
+	else
+	{
+		if (mklTransA == CBLAS_TRANSPOSE::CblasTrans || mklTransB == CBLAS_TRANSPOSE::CblasTrans)
+			LogicError("MultiplyAndWeightedAdd; Quantized multiplier doesn't support transpose");
+
+		pQuantizedMultiplier->Multiply(m, n, k, a.GetData(), b.GetData(), c.GetData());
+	}
+}
 
 //	c = alpha * a * v + beta * c
 
@@ -4837,15 +4837,15 @@ void CPUMatrix<ElemType>::Scale(ElemType alpha, CPUMatrix<ElemType>& a)
 //	Matrix multiply with col-major matrices
 //		a = alpha[1,1] * a
 
-//template <class ElemType>
-//void CPUMatrix<ElemType>::Scale(CPUMatrix<ElemType> alpha, CPUMatrix<ElemType>& a)
-//{
-//	if (a.IsEmpty())
-//		LogicError("Scale:  Input matrix a is empty");
-//	if (alpha.GetNumElements() != 1)
-//		LogicError("Matrix alpha must be 1x1");
-//	CPUMatrix<ElemType>::Scale(alpha(0, 0), a);
-//}
+template <class ElemType>
+void CPUMatrix<ElemType>::Scale(CPUMatrix<ElemType> alpha, CPUMatrix<ElemType>& a)
+{
+	if (a.IsEmpty())
+		LogicError("Scale:  Input matrix a is empty");
+	if (alpha.GetNumElements() != 1)
+		LogicError("Matrix alpha must be 1x1");
+	CPUMatrix<ElemType>::Scale(alpha(0,0), a);
+}
 
 //	Matrix-scalar multiply with col-major matrices
 //		c = alpha * a

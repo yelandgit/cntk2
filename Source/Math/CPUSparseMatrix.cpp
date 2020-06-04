@@ -685,39 +685,38 @@ void CPUSparseMatrix<ElemType>::MultiplyAndAdd(const CPUSparseMatrix<ElemType>& 
 ///		}
 ///	}
 ///}
-///
-//// sparse *= alpha
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::Scale(ElemType alpha, CPUSparseMatrix<ElemType>& rhs)
-///{
-///	if (rhs.IsEmpty())
-///		LogicError("Scale: the input sparse matrix is empty");
-///
-///	MatrixFormat mft = rhs.GetFormat();
-///	if (mft == matrixFormatSparseCSC || mft == matrixFormatSparseCSR)
-///	{
-///		index_t* primePos = rhs.GetPrimePos();
-///		size_t nc = (mft & matrixFormatRowMajor) ? rhs.GetNumRows() : rhs.GetNumCols();
-///		size_t ns = primePos[0], ne = primePos[nc];
-///		ElemType* p = rhs.GetBuffer() + ns;
-///		for (size_t j=ns; j<ne; ++j) *p++ *= alpha;
-///	}
-///	else if (mft == matrixFormatSparseBSC || mft == matrixFormatSparseBSR)
-///	{
-///		ElemType* pBuffer = rhs.GetBuffer();
-///		index_t* blockPos = rhs.GetBlockPos();
-///		size_t nc = (mft & matrixFormatRowMajor) ? rhs.GetNumRows() : rhs.GetNumCols();
-///		size_t nr = (mft & matrixFormatRowMajor) ? rhs.GetNumCols() : rhs.GetNumRows();
-///		for (size_t j=0; j<nc; ++j)
-///		{
-///			if (blockPos[j]==string::npos) continue;
-///			ElemType* p = pBuffer + blockPos[j]*nr;
-///			for (size_t i=0; i<nr; ++i) *p++ *= alpha;
-///		}
-///	}
-///}
-///
-//// dense += alpha * sparse
+
+// sparse *= alpha
+template <class ElemType>
+void CPUSparseMatrix<ElemType>::Scale(ElemType alpha, CPUSparseMatrix<ElemType>& rhs)
+{
+	if (rhs.IsEmpty()) return;
+
+	MatrixFormat mft = rhs.GetFormat();
+	if (mft == matrixFormatSparseCSC || mft == matrixFormatSparseCSR)
+	{
+		index_t* primePos = rhs.GetPrimePos();
+		size_t nc = (mft & matrixFormatRowMajor) ? rhs.GetNumRows() : rhs.GetNumCols();
+		size_t ns = primePos[0], ne = primePos[nc];
+		ElemType* p = rhs.GetBuffer() + ns;
+		for (size_t j=ns; j<ne; ++j) *p++ *= alpha;
+	}
+	else if (mft == matrixFormatSparseBSC || mft == matrixFormatSparseBSR)
+	{
+		ElemType* pBuffer = rhs.GetBuffer();
+		index_t* blockPos = rhs.GetPrimePos();
+		size_t nc = (mft & matrixFormatRowMajor) ? rhs.GetNumRows() : rhs.GetNumCols();
+		size_t nr = (mft & matrixFormatRowMajor) ? rhs.GetNumCols() : rhs.GetNumRows();
+		for (size_t j=0; j<nc; ++j)
+		{
+			if (blockPos[j]==string::npos) continue;
+			ElemType* p = pBuffer + blockPos[j]*nr;
+			for (size_t i=0; i<nr; ++i) *p++ *= alpha;
+		}
+	}
+}
+
+// dense += alpha * sparse
 ///template <class ElemType>
 ///void CPUSparseMatrix<ElemType>::ScaleAndAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& lhs, CPUMatrix<ElemType>& rhs)
 ///{
@@ -788,71 +787,93 @@ void CPUSparseMatrix<ElemType>::MultiplyAndAdd(const CPUSparseMatrix<ElemType>& 
 ///	}
 ///	return result;
 ///}
-///
-///template<class ElemType>
-///void CPUSparseMatrix<ElemType>::InnerProduct(const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c, bool isColWise)
-///{
-///	if (a.IsEmpty() || b.IsEmpty())
-///		LogicError("InnerProduct:  one of the input matrices is empty");
-///
-///	const int m = (int)a.GetNumRows();
-///	const int n = (int)a.GetNumCols();
-///	const int k = (int)b.GetNumRows();
-///	const int l = (int)b.GetNumCols();
-///
-///	assert(m > 0 && n > 0 && k > 0 && l > 0); // converting from size_t to int may cause overflow
-///	assert(m == k && n == l);                 // converting from size_t to int may cause overflow
-///	if (m != k || n != l)
-///		InvalidArgument("InnerProduct: Matrices a and b should have same dimension");
-///
-///	if (isColWise) // col-wise
-///	{
-///		c.Resize(1, n);
-///
-///#pragma omp parallel for
-///		foreach_column(j, c)
-///		{
-///			ElemType sum = 0;
-///			for (index_t iRow = a.ColLocation()[j]; iRow < a.ColLocation()[j+1]; ++iRow)
-///			{
-///				size_t row = a.RowLocation()[iRow];
-///				sum += a.Data()[iRow] * b(row, j);
-///			}
-///			c(0, j) = sum;
-///		}
-///	}
-///	else
-///	{
-///		c.Resize(m, 1);
-///
-///#pragma omp parallel for
-///		foreach_row(i, c)
-///		{
-///			ElemType sum = 0;
-///			for(index_t j = 0; j < n; ++j)
-///			{
-///				for (index_t iRow = a.ColLocation()[j]; iRow < a.ColLocation()[j + 1]; ++iRow)
-///				{
-///					if (a.RowLocation()[iRow] == i)
-///					{
-///						sum += a.Data()[iRow] * b(i, j);
-///						break;
-///					}
-///				}
-///			}
-///			c(i, 0) = sum;
-///		}
-///	}
-///}
-///
-//// A helper method used in MomentumSGDUpdate and NesterovAcceleratedMomentumSGDUpdate.
-//// Modifies the smoothed gradients "c", as well as the current gradients "this" on which this method is invoked.
-//// Classic momentum (unitGainFactor == 1.0):
-//// 1) c = momentum * c + this
-//// Unit-gain momentum (unitGainFactor == 1.0 - momentum):
-//// 1) c = momentum * c + (1.0 - momentum) * this
-//// 2) this = c
-//// TODO: NormalGrad is a misnomer here. Come up with a better name.
+
+template<class ElemType>
+void CPUSparseMatrix<ElemType>::InnerProduct(const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& b, CPUMatrix<ElemType>& c, bool isColWise)
+{
+	if (a.IsEmpty() || b.IsEmpty())
+		LogicError("InnerProduct:  one of the input matrices is empty");
+
+	const int m = (int)a.GetNumRows();
+	const int n = (int)a.GetNumCols();
+	const int k = (int)b.GetNumRows();
+	const int l = (int)b.GetNumCols();
+
+	assert(m > 0 && n > 0 && k > 0 && l > 0); // converting from size_t to int may cause overflow
+	assert(m == k && n == l);                 // converting from size_t to int may cause overflow
+	if (m != k || n != l)
+		InvalidArgument("InnerProduct: Matrices a and b should have same dimension");
+
+	if (isColWise) // col-wise
+	{
+		c.Resize(1, n);
+		ElemType* pdc = c.GetData();
+		const ElemType* pda = a.GetBuffer();
+		const index_t* compPos = a.GetPrimePos();
+		const index_t* compId = a.GetCompId();
+
+#pragma omp parallel for
+		for (size_t j=0; j<n; ++j)
+		{
+			ElemType sum = 0;
+			size_t ns = compPos[j], ne = compPos[j+1];
+			const ElemType* pdb = b.GetData() + j*m;;
+			for (size_t k=ns; k<ne; ++k) { size_t i = compId[k]; sum += pda[k] * pdb[i]; }
+			pdc[j] = sum;
+		}
+		//foreach_column(j, c)
+		//{
+		//	ElemType sum = 0;
+		//	for (index_t iRow = a.ColLocation()[j]; iRow < a.ColLocation()[j+1]; ++iRow)
+		//	{
+		//		size_t row = a.RowLocation()[iRow];
+		//		sum += a.Data()[iRow] * b(row, j);
+		//	}
+		//	c(0, j) = sum;
+		//}
+	}
+	else
+	{
+		c.Resize(m, 1);
+		ElemType* pdc = c.GetData();
+		const ElemType* pda = a.GetBuffer();
+		const index_t* compPos = a.GetPrimePos();
+		const index_t* compId = a.GetCompId();
+
+#pragma omp parallel for
+		for (size_t j=0; j<n; ++j)
+		{
+			size_t ns = compPos[j], ne = compPos[j+1];
+			const ElemType* pdb = b.GetData() + j*m;
+			for (size_t k=ns; k<ne; ++k) { size_t i = compId[k]; pdc[i] += pda[k] * pdb[i]; }
+		}
+		//foreach_row(i, c)
+		//{
+		//	ElemType sum = 0;
+		//	for(index_t j = 0; j < n; ++j)
+		//	{
+		//		for (index_t iRow = a.ColLocation()[j]; iRow < a.ColLocation()[j + 1]; ++iRow)
+		//		{
+		//			if (a.RowLocation()[iRow] == i)
+		//			{
+		//				sum += a.Data()[iRow] * b(i, j);
+		//				break;
+		//			}
+		//		}
+		//	}
+		//	c(i, 0) = sum;
+		//}
+	}
+}
+
+// A helper method used in MomentumSGDUpdate and NesterovAcceleratedMomentumSGDUpdate.
+// Modifies the smoothed gradients "c", as well as the current gradients "this" on which this method is invoked.
+// Classic momentum (unitGainFactor == 1.0):
+// 1) c = momentum * c + this
+// Unit-gain momentum (unitGainFactor == 1.0 - momentum):
+// 1) c = momentum * c + (1.0 - momentum) * this
+// 2) this = c
+// TODO: NormalGrad is a misnomer here. Come up with a better name.
 ///template <class ElemType>
 ///void CPUSparseMatrix<ElemType>::NormalGrad(CPUMatrix<ElemType>& c, ElemType momentum, ElemType unitGainFactor)
 ///{

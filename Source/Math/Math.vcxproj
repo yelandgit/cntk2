@@ -70,7 +70,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
@@ -85,7 +84,6 @@
     <LinkIncremental>false</LinkIncremental>
     <MathLibPath Condition="$(HasOpenBLAS)">$(MathLibPath)\Release</MathLibPath>
   </PropertyGroup>
-
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
@@ -179,6 +177,8 @@
     <ClInclude Include="CPUSparseMatrix.h" />
     <ClInclude Include="GPURNGHandle.h" />
     <ClInclude Include="Helpers.h" />
+    <ClInclude Include="QuantizedOperations.h" />
+    <ClInclude Include="Quantizers.h" />
     <ClInclude Include="RNGHandle.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
