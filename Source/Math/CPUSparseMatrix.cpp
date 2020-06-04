@@ -717,58 +717,48 @@ void CPUSparseMatrix<ElemType>::Scale(ElemType alpha, CPUSparseMatrix<ElemType>&
 }
 
 // dense += alpha * sparse
-///template <class ElemType>
-///void CPUSparseMatrix<ElemType>::ScaleAndAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& lhs, CPUMatrix<ElemType>& rhs)
-///{
-///	if (lhs.IsEmpty() || rhs.IsEmpty())
-///		LogicError("ScaleAndAdd:  one of the input matrix is empty");
-///
-///	size_t rows = lhs.GetNumRows(), cols = lhs.GetNumCols();
-///	if (rows != rhs.GetNumRows() || cols != rhs.GetNumCols())
-///		InvalidArgument("CPUSparseMatrix::ScaleAndAdd: The dimensions of a and b must match");
-///
-///	MatrixFormat mft = lhs.GetFormat();
-///	if (mft == matrixFormatSparseCSC || mft == matrixFormatSparseCSR)
-///	{
-///		index_t* primePos = lhs.GetPrimePos();
-///		index_t* compId = lhs.GetCompId();
-///		const ElemType* lp = lhs.Buffer();
-///
-///		bool csc = (mft == matrixFormatSparseCSC);
-///		size_t nc = csc ? cols : rows;
-///		for (size_t j=0; j<nc; ++j)
-///		{
-///			size_t ns = primePos[j], ne = primePos[j+1];
-///			for (size_t n=ns; n<ne; ++n)
-///			{
-///				size_t i = compId[n];
-///				if (csc) rhs(i,j) += alpha * lp[n];
-///				else rhs(j,i) += alpha * lp[n];
-///			}
-///		}
-///	}
-///	else if (mft == matrixFormatSparseBSC || mft == matrixFormatSparseBSR)
-///	{
-///		index_t* blockPos = lhs.GetBlockPos();
-///		const ElemType* lp = lhs.Buffer();
-///
-///		bool bsc = (mft == matrixFormatSparseBSC);
-///		size_t nc = bsc ? cols : rows;
-///		size_t nr = bsc ? rows : cols;
-///		for (size_t j=0; j<nc; ++j)
-///		{
-///			if (blockPos[j]==string::npos) continue;
-///			const ElemType* p = lp + blockPos[j]*nr;
-///			if (bsc) for (size_t i=0; i<nr; ++i) rhs(i,j) += alpha * (*p++);
-///			else for (size_t i=0; i<nr; ++i) rhs(j,i) += alpha * (*p++);
-///		}
-///	}
-///	else
-///	{
-///		RuntimeError("CPUSparseMatrix:: ScaleAndAdd() Not implemented");
-///	}
-///}
-///
+template <class ElemType>
+void CPUSparseMatrix<ElemType>::ScaleAndAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& lhs, CPUMatrix<ElemType>& rhs)
+{
+	if (lhs.IsEmpty() || rhs.IsEmpty())
+		LogicError("ScaleAndAdd:  one of the input matrix is empty");
+
+	size_t rows = lhs.GetNumRows(), cols = lhs.GetNumCols();
+	if (rows != rhs.GetNumRows() || cols != rhs.GetNumCols())
+		InvalidArgument("ScaleAndAdd; The dimensions of a and b must match");
+
+	MatrixFormat mft = lhs.GetFormat();
+	int rmf = mft & matrixFormatRowMajor;
+	size_t nc = (rmf) ? rows : cols;
+	size_t nr = (rmf) ? cols : rows;
+
+	if (mft == matrixFormatSparseCSC || mft == matrixFormatSparseCSR)
+	{
+		index_t* primePos = lhs.GetPrimePos();
+		index_t* compId = lhs.GetCompId();
+		const ElemType* pBuffer = lhs.GetBuffer();
+
+		for (size_t j=0; j<nc; ++j)
+		{
+			size_t ns = primePos[j], ne = primePos[j+1]; if (ns==ne) continue;
+			if (rmf)
+			{
+				ElemType* po = rhs.GetData() + j;
+				for (size_t k=ns; k<ne; ++k) po[compId[k]*nc] += alpha*pBuffer[k];
+			}
+			else
+			{
+				ElemType* po = rhs.GetData() + j*nr;
+				for (size_t k=ns; k<ne; ++k) po[compId[k]] += alpha*pBuffer[k];
+			}
+		}
+	}
+	else if (mft == matrixFormatSparseBSC || mft == matrixFormatSparseBSR)
+	{
+		NOT_IMPLEMENTED
+	}
+}
+
 ///template <class ElemType>
 ///bool CPUSparseMatrix<ElemType>::AreEqual(const CPUSparseMatrix<ElemType>& a, const CPUSparseMatrix<ElemType>& b, ElemType threshold)
 ///{

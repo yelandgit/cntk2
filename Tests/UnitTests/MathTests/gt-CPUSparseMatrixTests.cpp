@@ -396,4 +396,37 @@ TEST_F(CPUSparseMatrixTests, InnerProduct)
 	ASSERT_TRUE(msdw.IsEqualTo(mddw,true));
 }
 
+TEST_F(CPUSparseMatrixTests, ScaleAndAdd)
+{
+	RandomSeedFixture rsf;
+
+	size_t m = 100;
+	size_t n = 80;
+
+	DenseMatrix dma(m,n);
+	dma.SetUniformRandomValue(-1, 1, rsf.GetSeed());
+	dma.InplaceTruncateBottom(0);
+
+	DenseMatrix dmb(m,n);
+	dmb.SetUniformRandomValue(-1, 1, rsf.GetSeed());
+	dmb.InplaceTruncateBottom(0);
+
+	// reference
+	DenseMatrix dmc(dmb);
+	DenseMatrix::ScaleAndAdd(1, dma, dmc);
+
+	// SparceCSC
+	SparseMatrix smc;
+	smc.SetValue(dma.GetNumRows(), dma.GetNumCols(), dma.GetData());
+	DenseMatrix dms(dmb);
+	SparseMatrix::ScaleAndAdd(1, smc, dms);
+	ASSERT_TRUE(dms.IsEqualTo(dmc,true));
+
+	// SparceCSR
+	SparseMatrix smr(smc.Transpose(true));
+	dms.SetValue(dmb);
+	SparseMatrix::ScaleAndAdd(1, smr, dms);
+	ASSERT_TRUE(dms.IsEqualTo(dmc,true));
+}
+
 } } } }

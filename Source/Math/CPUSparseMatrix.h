@@ -50,7 +50,7 @@ public:
 	CPUSparseMatrix<ElemType> CopyToBlock() const { CPUSparseMatrix<ElemType> dm; Base::CopyToBlock(dm); return dm; }
 	void ConvertToFullBlock() { CPUSparseMatrix<ElemType> sm; CopyToFullBlock(sm); Assign(sm,true); }
 
-	CPUSparseMatrix<ElemType> Transpose(bool hdr=false) const { CPUSparseMatrix<ElemType> sm; TransposeTo(sm); return sm; }
+	CPUSparseMatrix<ElemType> Transpose(bool hdr=false) const { CPUSparseMatrix<ElemType> sm; TransposeTo(sm,hdr); return sm; }
 	CPUSparseMatrix<ElemType>& AssignTransposeOf(const CPUSparseMatrix<ElemType>& a) { if (&a!=this) Assign(a.Transpose(), true); return *this; }
 
 ///	void MaskColumnsValue(const CPUMatrix<char>& mask, ElemType val, size_t mcols);
@@ -89,8 +89,8 @@ public:
 ///	static void ColumnwiseScaleAndWeightedAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& a, const CPUMatrix<ElemType>& v, ElemType beta, CPUMatrix<ElemType>& c);
 
 	static void Scale(ElemType alpha, CPUSparseMatrix<ElemType>& rhs);
-///	static void ScaleAndAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& lhs, CPUMatrix<ElemType>& c);
-///
+	static void ScaleAndAdd(ElemType alpha, const CPUSparseMatrix<ElemType>& lhs, CPUMatrix<ElemType>& c);
+
 ///	static bool AreEqual(const CPUSparseMatrix<ElemType>& a, const CPUSparseMatrix<ElemType>& b, ElemType threshold = 1e-8) { NOT_IMPLEMENTED }
 
 	// sum(vec(a).*vec(b))
